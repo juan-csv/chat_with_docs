@@ -2,8 +2,8 @@ if True:
     import sys
     sys.path.append("../")
 
-from src.conversational_chain import ChatRetrieval
 from src.retriever_and_vectorstore import Retriever
+from src.conversational_chain import ChatRetrieval
 
 # Args
 debug = True

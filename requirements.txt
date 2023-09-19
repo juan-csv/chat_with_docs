@@ -1,0 +1,4 @@
+langchain==0.0.294
+PyYAML==6.0
+PyYAML==6.0.1
+streamlit==1.26.0
