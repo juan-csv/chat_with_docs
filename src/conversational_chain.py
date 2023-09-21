@@ -1,3 +1,4 @@
+"""Conversational chain"""
 from langchain.chains import ConversationalRetrievalChain
 from langchain.chat_models import ChatOpenAI
 
@@ -6,12 +7,14 @@ if True:
     sys.path.append("../")
 
 from src.retriever_and_vectorstore import Retriever
+from src.prompts.prompts_template import CONVERSATIONAL_RETRIEVAL_CHAIN
+from src.base_llm import BaseLLM
 
 
 class ChatRetrieval:
     """Chat retrieval"""
 
-    def __init__(self, retriever, streaming=False) -> None:
+    def __init__(self, retriever, base_llm) -> None:
         """Chat retrieval"""
 
         # Instance retriever
@@ -21,15 +24,11 @@ class ChatRetrieval:
         self.config = self.retriever.config
 
         # Instance variables chat_history
-        # TODO: remove and replace as a input
         self.chat_history = []
 
         # Instance LLM
-        self.llm = ChatOpenAI(
-            temperature=self.config['conversational_chain']['llm']['temperature'],
-            model_name=self.config['conversational_chain']['llm']['model_name'],
-            streaming=streaming
-        )
+        self.llm = base_llm()
+
         self.llm_condense_question = ChatOpenAI(
             temperature=self.config['conversational_chain']['condense_question_llm']['temperature'],
             model_name=self.config['conversational_chain']['condense_question_llm']['model_name']
@@ -39,15 +38,28 @@ class ChatRetrieval:
         self.qa = ConversationalRetrievalChain.from_llm(
             self.llm,
             self.retriever(),
-            condense_question_llm=self.llm_condense_question,
-            # combine_docs_chain_kwargs={"prompt": qa_prompt}
+            verbose=self.debug,
+            # condense_question_llm=self.llm_condense_question,
+            combine_docs_chain_kwargs={
+                "prompt": CONVERSATIONAL_RETRIEVAL_CHAIN}
         )
 
     def run(self, query, chat_history: list = None, callbacks=None):
-        """Run chat retrieval"""
+        """Run chat retrieval
+        Args:
+            query (str): query
+            chat_history (list, optional): chat history. Defaults to None. list of tuples (query, answer)
+            callbacks ([type], optional): callbacks. Defaults to None.
+        Returns:
+            str: answer
+        """
+
+        if chat_history is None:
+            chat_history = self.chat_history
+
         inputs = {
             "question": query,
-            "chat_history": self.chat_history
+            "chat_history": chat_history
         }
 
         result = self.qa(
@@ -70,11 +82,12 @@ if __name__ == "__main__":
 
     # Instance retriever
     path_file = "../docs_example/contract.pdf"
+    base_llm = BaseLLM(debug=debug)
     retriever = Retriever(debug=debug)
     retriever.store_document(path_file=path_file)
 
     # Instance chat retrieval
-    chat_retrieval = ChatRetrieval(retriever=retriever)
+    chat_retrieval = ChatRetrieval(retriever=retriever, base_llm=base_llm)
 
     # Run
     answer = chat_retrieval.run(query=query)

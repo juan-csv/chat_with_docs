@@ -2,13 +2,11 @@ import yaml
 import os
 from pathlib import Path
 
-Path("/") / "config/config.yaml"
-
 
 def load_config(debug=False):
     """Load config file"""
     if debug:
-        root_path = Path(__file__).parent.parent.parent
+        root_path = Path(__file__).parent.parent
     else:
         root_path = Path("/")
 
@@ -24,3 +22,8 @@ def load_config(debug=False):
 def set_env_var(config):
     """Set env variables"""
     os.environ['OPENAI_API_KEY'] = config['OPENAI_API_KEY']
+
+
+if __name__ == "__main__":
+    config = load_config(debug=True)
+    print(config)

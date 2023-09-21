@@ -1,15 +1,15 @@
-if True:
-    import sys
-    sys.path.append("../")
+import base64
 import os
 import tempfile
+
 import langchain
-from langchain.callbacks.base import BaseCallbackHandler
 import streamlit as st
-import base64
+from langchain.callbacks.base import BaseCallbackHandler
 from langchain.memory.chat_message_histories import StreamlitChatMessageHistory
-from src.retriever_and_vectorstore import Retriever
 from src.conversational_chain import ChatRetrieval
+from src.prompts.prompts_template import INIT_QUERY
+from src.retriever_and_vectorstore import Retriever
+from src.base_llm import BaseLLM
 
 
 def save_tmp_file(uploaded_file):
@@ -69,10 +69,11 @@ def displayPDF(file):
 
 
 @st.cache_resource
-def insntance_chat():
+def insntance_chat(debug=False):
     # Instance retriever when app is started
-    retriever = Retriever(debug=True)
-    chat_retrieval = ChatRetrieval(retriever=retriever, streaming=True)
+    retriever = Retriever(debug=debug)
+    base_llm = BaseLLM(debug=debug, streaming=True)
+    chat_retrieval = ChatRetrieval(retriever=retriever, base_llm=base_llm)
     return retriever, chat_retrieval
 
 
@@ -89,57 +90,80 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+
+langchain.verbose = True
 # Instance chat retrieval
-retriever, chat_retrieval = insntance_chat()
+retriever, chat_retrieval = insntance_chat(debug=True)
+# set chat history
+chat_history = []
 # Setup memory for contextual conversation
 msgs = StreamlitChatMessageHistory()
 # define avatar
 avatars = {"human": "user", "ai": "assistant"}
 
 
-# File uploader widget
-uploaded_file = st.sidebar.file_uploader("Upload a PDF file", type=["pdf"])
+if __name__ == "__main__":
 
-if not uploaded_file:
-    st.info("Please upload PDF documents to continue.")
-    st.stop()
-else:
-    # save as a temporary file
-    temp_file_path = save_tmp_file(uploaded_file)
-    st.success("File uploaded and saved as a temporary file.")
-    st.text("The temporary directory will be removed when the app is closed.")
+    # File uploader widget
+    uploaded_file = st.sidebar.file_uploader("Upload a PDF file", type=["pdf"])
 
-    # load the file
-    retriever.store_document(path_file=temp_file_path)
+    if not uploaded_file:
+        st.info("Please upload PDF documents to continue.")
+        st.stop()
+    else:
+        # check if a file already was uploaded
+        if len(msgs.messages) == 0:
+            # save as a temporary file
+            temp_file_path = save_tmp_file(uploaded_file)
+            # save temp_file_path variable
+            st.session_state.temp_file_path = temp_file_path
 
-    # preview the file
-    displayPDF(temp_file_path)
+            st.success("File uploaded and saved as a temporary file.")
+            st.text("The temporary directory will be removed when the app is closed.")
+            # load the file
+            with st.spinner("Creating embeddings for document..."):
+                retriever.store_document(path_file=temp_file_path)
 
+        # preview the file
+        if st.session_state.temp_file_path:
+            displayPDF(st.session_state.temp_file_path)
 
-# show a message if there are no messages
-if len(msgs.messages) == 0:
-    # msgs.clear()
-    msgs.add_ai_message("How can I help you?")
+    # show a message if there are no messages
+    if len(msgs.messages) == 0:
+        # create
+        # msgs.clear()
+        # add loader message
+        with st.spinner("Processing document suggestions..."):
+            # run chat retrieval
+            response = chat_retrieval.run(INIT_QUERY)
+            # add message to chat history
+            msgs.add_ai_message(response)
+            # add chat_history
+            chat_history.append((INIT_QUERY, response))
 
-# show chat history
-for msg in msgs.messages:
-    st.chat_message(avatars[msg.type]).write(msg.content)
+    # show chat history
+    for msg in msgs.messages:
+        st.chat_message(avatars[msg.type]).write(msg.content)
 
+    # When user sends a message
+    if user_query := st.chat_input(placeholder="Ask me anything!"):
+        # add message to chat history
+        st.chat_message("user").write(user_query)
+        # add message to message history
+        msgs.add_user_message(user_query)
 
-# When user sends a message
-if user_query := st.chat_input(placeholder="Ask me anything!"):
-    # add message to chat history
-    st.chat_message("user").write(user_query)
-    # add message to message history
-    msgs.add_user_message(user_query)
-
-    # run chat retrieval
-    with st.chat_message("assistant"):
-        # setup callback
-        stream_handler = StreamHandler(st.empty())
-        retrieval_handler = PrintRetrievalHandler(st.container())
         # run chat retrieval
-        response = chat_retrieval.run(
-            user_query, callbacks=[stream_handler, retrieval_handler])
+        with st.chat_message("assistant"):
+            # setup callback
+            stream_handler = StreamHandler(st.empty())
+            retrieval_handler = PrintRetrievalHandler(st.container())
+            # run chat retrieval
+            response = chat_retrieval.run(
+                user_query,
+                chat_history=chat_history,
+                callbacks=[stream_handler, retrieval_handler])
+
         # add message to chat history
         msgs.add_ai_message(response)
+        # add chat_history
+        chat_history.append((user_query, response))
