@@ -10,3 +10,9 @@ wandb
 # files
 config
 streamlit_*
+
+# env
+env 
+
+# environ vars
+.env
