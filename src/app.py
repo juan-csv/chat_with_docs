@@ -10,6 +10,7 @@ from src.conversational_chain import ChatRetrieval
 from src.prompts.prompts_template import INIT_QUERY
 from src.retriever_and_vectorstore import Retriever
 from src.base_llm import BaseLLM
+from text_analysis_chains import summarize_text, change_of_tone_text, rephrase_text
 
 
 def save_tmp_file(uploaded_file):
@@ -23,7 +24,9 @@ def save_tmp_file(uploaded_file):
 
 
 class StreamHandler(BaseCallbackHandler):
-    def __init__(self, container: st.delta_generator.DeltaGenerator, initial_text: str = ""):
+    def __init__(
+        self, container: st.delta_generator.DeltaGenerator, initial_text: str = ""
+    ):
         self.container = container
         self.text = initial_text
         self.run_id_ignore_token = None
@@ -59,10 +62,10 @@ class PrintRetrievalHandler(BaseCallbackHandler):
 def displayPDF(file):
     # Opening file from file path
     with open(file, "rb") as f:
-        base64_pdf = base64.b64encode(f.read()).decode('utf-8')
+        base64_pdf = base64.b64encode(f.read()).decode("utf-8")
 
     # Embedding PDF in HTML
-    pdf_display = F'<embed src="data:application/pdf;base64,{base64_pdf}" width="500" height="600" type="application/pdf">'
+    pdf_display = f'<embed src="data:application/pdf;base64,{base64_pdf}" width="500" height="600" type="application/pdf">'
 
     # Displaying File
     st.sidebar.markdown(pdf_display, unsafe_allow_html=True)
@@ -103,7 +106,6 @@ avatars = {"human": "user", "ai": "assistant"}
 
 
 if __name__ == "__main__":
-
     # File uploader widget
     uploaded_file = st.sidebar.file_uploader("Upload a PDF file", type=["pdf"])
 
@@ -145,6 +147,15 @@ if __name__ == "__main__":
     for msg in msgs.messages:
         st.chat_message(avatars[msg.type]).write(msg.content)
 
+    # Add set of options as a sidebar to use the text analysis modules
+    options = ["Query", "Summarize Text", "Change Tone", "Rephrase Text"]
+
+    # Create a selectbox for the user to choose an option
+    selected_option = st.sidebar.selectbox("Select an action:", options)
+    if selected_option == "Change Tone":
+        tone = st.sidebar.text_input("Write down a desired tone description")
+        print("Outside Option -> Tone selected: ", tone)
+
     # When user sends a message
     if user_query := st.chat_input(placeholder="Ask me anything!"):
         # add message to chat history
@@ -152,18 +163,44 @@ if __name__ == "__main__":
         # add message to message history
         msgs.add_user_message(user_query)
 
-        # run chat retrieval
-        with st.chat_message("assistant"):
-            # setup callback
-            stream_handler = StreamHandler(st.empty())
-            retrieval_handler = PrintRetrievalHandler(st.container())
-            # run chat retrieval
-            response = chat_retrieval.run(
-                user_query,
-                chat_history=chat_history,
-                callbacks=[stream_handler, retrieval_handler])
+        if selected_option == "Query":
+        
+            with st.chat_message("assistant"):
+                # setup callback
+                stream_handler = StreamHandler(st.empty())
+                retrieval_handler = PrintRetrievalHandler(st.container())        
+                # run chat retrieval
+                response = chat_retrieval.run(
+                    user_query,
+                    chat_history=chat_history,
+                    callbacks=[stream_handler, retrieval_handler],
+                )
+        # Choose from the other Text Transform Options
+        elif selected_option == "Summarize Text":
+            print("Selected: Summarize")
+            response = summarize_text(
+                text=user_query, llm=chat_retrieval.llm
+            )  # Call the summarize_text function
+        elif selected_option == "Change Tone":
+            # user_input = input_placeholder.text_input("Enter a tone target description")
+            print("Inside Option -> Tone selected: ", tone)
+            print("Selected: Change of Tone")
+            response = change_of_tone_text(
+                text=user_query,
+                llm=chat_retrieval.llm,
+                tone_description=tone,
+            )  # Call the change_of_tone_text function
+        elif selected_option == "Rephrase Text":
+            print("Selected: Rephrase")
+            response = rephrase_text(
+                text=user_query, llm=chat_retrieval.llm
+            )  # Call the rephrase_text function
 
         # add message to chat history
         msgs.add_ai_message(response)
+        # Respond
+        st.chat_message("assistant").write(response)
         # add chat_history
         chat_history.append((user_query, response))
+
+        
