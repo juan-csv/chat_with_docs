@@ -72,11 +72,11 @@ def displayPDF(file):
 
 
 @st.cache_resource
-def insntance_chat(debug=False):
+def instance_chat(debug=False, session_id='0'):
     # Instance retriever when app is started
     retriever = Retriever(debug=debug)
     base_llm = BaseLLM(debug=debug, streaming=True)
-    chat_retrieval = ChatRetrieval(retriever=retriever, base_llm=base_llm)
+    chat_retrieval = ChatRetrieval(retriever=retriever, base_llm=base_llm, session_id=SESSION_ID)
     return retriever, chat_retrieval
 
 
@@ -95,8 +95,10 @@ st.markdown(
 
 
 langchain.verbose = True
+# Session ID emulator to handle document searchs
+SESSION_ID = "123456"
 # Instance chat retrieval
-retriever, chat_retrieval = insntance_chat(debug=True)
+retriever, chat_retrieval = instance_chat(debug=True, session_id = SESSION_ID)
 # set chat history
 chat_history = []
 # Setup memory for contextual conversation
@@ -124,7 +126,7 @@ if __name__ == "__main__":
             st.text("The temporary directory will be removed when the app is closed.")
             # load the file
             with st.spinner("Creating embeddings for document..."):
-                retriever.store_document(path_file=temp_file_path)
+                retriever.store_document(path_file=temp_file_path, session_id=SESSION_ID)
 
         # preview the file
         if st.session_state.temp_file_path:

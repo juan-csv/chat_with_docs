@@ -14,7 +14,7 @@ from src.base_llm import BaseLLM
 class ChatRetrieval:
     """Chat retrieval"""
 
-    def __init__(self, retriever, base_llm) -> None:
+    def __init__(self, retriever, base_llm, session_id) -> None:
         """Chat retrieval"""
 
         # Instance retriever
@@ -37,7 +37,7 @@ class ChatRetrieval:
         # Create chain
         self.qa = ConversationalRetrievalChain.from_llm(
             self.llm,
-            self.retriever(),
+            self.retriever(session_id=session_id),
             verbose=self.debug,
             # condense_question_llm=self.llm_condense_question,
             combine_docs_chain_kwargs={
