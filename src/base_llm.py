@@ -17,7 +17,7 @@ class BaseLLM:
         self.llm = ChatOpenAI(
             temperature=self.config['base_llm']['temperature'],
             model_name=self.config['base_llm']['model_name'],
-            streaming=streaming
+            streaming=True
         )
 
     def __call__(self):

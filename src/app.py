@@ -139,7 +139,8 @@ if __name__ == "__main__":
         # add loader message
         with st.spinner("Processing document suggestions..."):
             # run chat retrieval
-            response = chat_retrieval.run(INIT_QUERY)
+            # response = chat_retrieval.run(INIT_QUERY)
+            response = "Hi"
             # add message to chat history
             msgs.add_ai_message(response)
             # add chat_history
@@ -200,7 +201,7 @@ if __name__ == "__main__":
 
         # add message to chat history
         msgs.add_ai_message(response)
-        # Respond
+        # force to respond
         st.chat_message("assistant").write(response)
         # add chat_history
         chat_history.append((user_query, response))

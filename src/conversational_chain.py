@@ -9,6 +9,7 @@ if True:
 from src.retriever_and_vectorstore import Retriever
 from src.prompts.prompts_template import CONVERSATIONAL_RETRIEVAL_CHAIN
 from src.base_llm import BaseLLM
+from langchain.chains.question_answering import load_qa_chain
 
 
 class ChatRetrieval:
