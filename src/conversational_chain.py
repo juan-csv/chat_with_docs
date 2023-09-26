@@ -15,7 +15,7 @@ from langchain.chains.question_answering import load_qa_chain
 class ChatRetrieval:
     """Chat retrieval"""
 
-    def __init__(self, retriever, base_llm, session_id) -> None:
+    def __init__(self, retriever, base_llm) -> None:
         """Chat retrieval"""
 
         # Instance retriever
@@ -35,17 +35,7 @@ class ChatRetrieval:
             model_name=self.config['conversational_chain']['condense_question_llm']['model_name']
         )
 
-        # Create chain
-        self.qa = ConversationalRetrievalChain.from_llm(
-            self.llm,
-            self.retriever(session_id=session_id),
-            verbose=self.debug,
-            # condense_question_llm=self.llm_condense_question,
-            combine_docs_chain_kwargs={
-                "prompt": CONVERSATIONAL_RETRIEVAL_CHAIN}
-        )
-
-    def run(self, query, chat_history: list = None, callbacks=None):
+    def run(self, query, chat_history: list = None, callbacks=None, session_id: str = ""):
         """Run chat retrieval
         Args:
             query (str): query
@@ -54,6 +44,16 @@ class ChatRetrieval:
         Returns:
             str: answer
         """
+        # Create chain
+        qa = ConversationalRetrievalChain.from_llm(
+            self.llm,
+            self.retriever(session_id=session_id),
+            verbose=self.debug,
+            # condense_question_llm=self.llm_condense_question,
+            combine_docs_chain_kwargs={
+                "prompt": CONVERSATIONAL_RETRIEVAL_CHAIN}
+        )
+
 
         if chat_history is None:
             chat_history = self.chat_history
@@ -63,7 +63,7 @@ class ChatRetrieval:
             "chat_history": chat_history
         }
 
-        result = self.qa(
+        result = qa(
             inputs=inputs,
             callbacks=callbacks
         )
