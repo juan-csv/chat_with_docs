@@ -4,10 +4,10 @@ if True:
 
     sys.path.append("../")
 import os
-import chromadb
 from langchain.embeddings.openai import OpenAIEmbeddings
-from langchain.vectorstores import Chroma
+from src.utils.open_search_vector_search_cs import OpenSearchVectorSearchCS
 from src.utils.config import load_config
+import logging
 
 
 class Retriever:
@@ -19,23 +19,32 @@ class Retriever:
 
         # Load config
         self.config = load_config(debug=self.debug)
-        self.collection_name = self.config['retriever']['collection_name']
+        self.index_name = self.config['retriever']['opensearch_index_name']
 
-        # Define vector store connection to the DB
-        self.db_client = chromadb.HttpClient(
-            host=os.getenv("CHROMADB_HOST"), port=os.getenv("CHROMADB_PORT")
+        # Vector Store Init
+        self.vector_store = OpenSearchVectorSearchCS(
+            opensearch_url=f"https://{ os.getenv('OPENSEARCH_HOST') }:{ os.getenv('OPENSEARCH_PORT') }",
+            embedding_function=OpenAIEmbeddings(),
+            http_auth=(os.getenv("OPENSEARCH_USER"), os.getenv("OPENSEARCH_PWD")),
+            index_name=self.index_name,
+            use_ssl=True,
+            verify_certs=False,
+            ssl_assert_hostname=False,
+            ssl_show_warn=False,
         )
 
-        self.vector_store = Chroma(
-            client=self.db_client,
-            collection_name= self.collection_name, 
-            embedding_function=OpenAIEmbeddings()
-        )
+        # DB Client
+        self.client = self.vector_store.client
 
     def __call__(self, session_id):
         """Return retriever"""
         return self.vector_store.as_retriever(
-            search_type="mmr", search_kwargs={"filter": {"session_id": session_id}}
+            search_kwargs={
+                "search_type": "script_scoring",
+                "pre_filter": {
+                    "bool": {"filter": {"term": {"metadata.session_id": session_id}}}
+                },
+            }
         )
 
     def store_document(self, docs: list, session_id: str, replace_docs: bool = False):
@@ -45,12 +54,23 @@ class Retriever:
         for doc in docs:
             doc.metadata["session_id"] = session_id
 
-        if replace_docs: 
+        if replace_docs:
             # Search documents
-            to_replace = self.vector_store.get(where={'session_id':session_id})
-            print('Documents to replace: ', to_replace)
-            # Remove documents
-            # TODO
+            delete_response = self.client.delete_by_query(
+                index=self.index_name,
+                body={
+                    "query": {
+                        "bool": {
+                            "must": {
+                                "match": {
+                                    "metadata.session_id":  session_id
+                                    }
+                                }
+                            }
+                        }
+                    }
+            )
+            logging.info(delete_response)
 
         # Store in vector store
         self.vector_store.add_documents(documents=docs)

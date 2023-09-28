@@ -22,8 +22,11 @@ def load_config(debug=False):
 def set_env_var(config):
     """Set env variables"""
     os.environ['OPENAI_API_KEY'] = config['OPENAI_API_KEY']
-    os.environ['CHROMADB_HOST'] = config['CHROMADB_HOST']
-    os.environ["CHROMADB_PORT"] = config['CHROMADB_PORT']
+    os.environ["OPENSEARCH_HOST"] = config['OPENSEARCH_HOST']
+    os.environ["OPENSEARCH_PORT"] = config['OPENSEARCH_PORT']
+    os.environ["OPENSEARCH_USER"] = config['OPENSEARCH_USER']
+    os.environ["OPENSEARCH_PWD"] = config['OPENSEARCH_PWD']
+
 
 
 if __name__ == "__main__":

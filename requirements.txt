@@ -1,7 +1,8 @@
-langchain==0.0.294
+langchain==0.0.303
 PyYAML==6.0.1
 streamlit==1.26.0
 pdfminer.six
 openai==0.28.0
 chromadb==0.4.12
 tiktoken==0.5.1
+opensearch-py==2.3.1

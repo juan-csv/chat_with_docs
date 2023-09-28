@@ -129,7 +129,7 @@ if __name__ == "__main__":
             # load the file
             with st.spinner("Creating embeddings for document..."):
                 docs = splitter.process_document(path_file=temp_file_path)
-                retriever.store_document( docs=docs, session_id=SESSION_ID, replace_docs=False)
+                retriever.store_document( docs=docs, session_id=SESSION_ID, replace_docs=True)
 
         # preview the file
         if st.session_state.temp_file_path:
