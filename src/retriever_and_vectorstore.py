@@ -33,11 +33,11 @@ class Retriever:
         # Instance vector store
         self.vector_store = Chroma(embedding_function=OpenAIEmbeddings())
 
-    def __call__(self):
+    def __call__(self, session_id):
         """Return retriever"""
-        return self.vector_store.as_retriever(search_type="mmr")
+        return self.vector_store.as_retriever(search_type="mmr",search_kwargs={"filter":{"session_id" : session_id}})
 
-    def store_document(self, path_file):
+    def store_document(self, path_file, session_id):
         """Read document -> split in chunks -> store vector store"""
 
         # Load document
@@ -50,6 +50,10 @@ class Retriever:
         else:
             chunks = self.splitter.split_documents(doc)
 
+        # Add metadata to test search within metadata elements in Chroma
+        for doc in chunks: 
+            doc.metadata['session_id'] = session_id
+
         # Store in vector store
         self.vector_store.add_documents(chunks)
 
@@ -61,5 +65,10 @@ if __name__ == "__main__":
 
     # get similar documents
     query = "What are the title of this document?"
-    similar_docs = retriever.vector_store.similarity_search(query)
-    print(similar_docs[0].page_content)
+    similar_docs = retriever.vector_store.similarity_search(
+        query,
+        filter={'session_id':'12345'}
+    )
+    print('similar docs: ', len(similar_docs))
+    if len(similar_docs) > 0:
+        print(similar_docs[0].page_content)
