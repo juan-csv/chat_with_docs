@@ -8,7 +8,8 @@ from langchain.callbacks.base import BaseCallbackHandler
 from langchain.memory.chat_message_histories import StreamlitChatMessageHistory
 from src.conversational_chain import ChatRetrieval
 from src.prompts.prompts_template import INIT_QUERY
-from src.retriever_and_vectorstore import Retriever
+from src.splitter import Splitter
+from src.retriever import Retriever
 from src.base_llm import BaseLLM
 from text_analysis_chains import summarize_text, change_of_tone_text, rephrase_text
 
@@ -72,12 +73,13 @@ def displayPDF(file):
 
 
 @st.cache_resource
-def instance_chat(debug=False, session_id='0'):
+def instance_chat(debug=False):
     # Instance retriever when app is started
+    splitter = Splitter(debug=debug)
     retriever = Retriever(debug=debug)
     base_llm = BaseLLM(debug=debug, streaming=True)
-    chat_retrieval = ChatRetrieval(retriever=retriever, base_llm=base_llm, session_id=SESSION_ID)
-    return retriever, chat_retrieval
+    chat_retrieval = ChatRetrieval(retriever=retriever, base_llm=base_llm)
+    return splitter, retriever, chat_retrieval
 
 
 st.set_page_config(page_title="HubSync: AI Assitant")
@@ -98,7 +100,7 @@ langchain.verbose = True
 # Session ID emulator to handle document searchs
 SESSION_ID = "123456"
 # Instance chat retrieval
-retriever, chat_retrieval = instance_chat(debug=True, session_id = SESSION_ID)
+splitter, retriever, chat_retrieval = instance_chat(debug=True)
 # set chat history
 chat_history = []
 # Setup memory for contextual conversation
@@ -126,7 +128,8 @@ if __name__ == "__main__":
             st.text("The temporary directory will be removed when the app is closed.")
             # load the file
             with st.spinner("Creating embeddings for document..."):
-                retriever.store_document(path_file=temp_file_path, session_id=SESSION_ID)
+                docs = splitter.process_document(path_file=temp_file_path)
+                retriever.store_document( docs=docs, session_id=SESSION_ID, replace_docs=True)
 
         # preview the file
         if st.session_state.temp_file_path:
@@ -139,8 +142,8 @@ if __name__ == "__main__":
         # add loader message
         with st.spinner("Processing document suggestions..."):
             # run chat retrieval
-            # response = chat_retrieval.run(INIT_QUERY)
-            response = "Hi"
+            response = chat_retrieval.run(query=INIT_QUERY, session_id=SESSION_ID)
+            # response = "Hi"
             # add message to chat history
             msgs.add_ai_message(response)
             # add chat_history
@@ -177,6 +180,7 @@ if __name__ == "__main__":
                     user_query,
                     chat_history=chat_history,
                     callbacks=[stream_handler, retrieval_handler],
+                    session_id=SESSION_ID
                 )
         # Choose from the other Text Transform Options
         elif selected_option == "Summarize Text":
