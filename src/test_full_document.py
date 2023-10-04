@@ -227,7 +227,12 @@ chunks = spliiter.split_documents(doc)[:1]
 # ----------------------------------------------------------------------------------------------------------------
 # ----------------------------------------------------------------------------------------------------------------
 astart_time = time.time()
-res = await asyncio.gather(map_reduce_chain.arun(chunks))
+
+
+async def run():
+    res = await asyncio.gather(map_reduce_chain.arun(chunks))
+    return res
+res = run()
 if type(res) == list:
     res = res[0]
 
