@@ -17,9 +17,29 @@ class BaseLLM:
         self.llm = ChatOpenAI(
             temperature=self.config['base_llm']['temperature'],
             model_name=self.config['base_llm']['model_name'],
-            streaming=True
+            streaming=streaming,
+            model_kwargs={'top_p': 0.09}
         )
 
     def __call__(self):
         """Return chain"""
         return self.llm
+
+
+if __name__ == "__main__":
+    from langchain.prompts import PromptTemplate
+    from langchain.chains import LLMChain
+
+    base_llm = BaseLLM(debug=True)
+    query = "create history about a wizard"
+
+    prompt = PromptTemplate(
+        template="""You are an assiant,
+        {query}""",
+        input_variables=["query"],
+    )
+
+    # llm_chain = LLMChain(
+    #     llm=base_llm(), prompt=prompt, llm_kwargs={"temperature": 0.0})
+    # llm_chain.run(query=query)
+    base_llm.llm.predict(query)
