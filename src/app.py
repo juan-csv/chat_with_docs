@@ -3,14 +3,17 @@ import os
 import tempfile
 
 import langchain
+import asyncio
 import streamlit as st
 from langchain.callbacks.base import BaseCallbackHandler
 from langchain.memory.chat_message_histories import StreamlitChatMessageHistory
 from src.conversational_chain import ChatRetrieval
 from src.prompts.prompts_template import INIT_QUERY
-from src.retriever_and_vectorstore import Retriever
+from src.splitter import Splitter
+from src.retriever import Retriever
 from src.base_llm import BaseLLM
-from text_analysis_chains import summarize_text, change_of_tone_text, rephrase_text
+from text_analysis_chains import summarize_text, change_of_tone_text, rephrase_text, parragraph_suggestion
+from src.sugestion_generator import SuggestionGenerator
 
 
 def save_tmp_file(uploaded_file):
@@ -72,12 +75,14 @@ def displayPDF(file):
 
 
 @st.cache_resource
-def instance_chat(debug=False, session_id='0'):
+def instance_chat(debug=False):
     # Instance retriever when app is started
+    splitter = Splitter(debug=debug)
     retriever = Retriever(debug=debug)
     base_llm = BaseLLM(debug=debug, streaming=True)
-    chat_retrieval = ChatRetrieval(retriever=retriever, base_llm=base_llm, session_id=SESSION_ID)
-    return retriever, chat_retrieval
+    chat_retrieval = ChatRetrieval(retriever=retriever, base_llm=base_llm)
+    sugestter = SuggestionGenerator(llm=chat_retrieval.llm, debug=debug)
+    return splitter, retriever, chat_retrieval, sugestter
 
 
 st.set_page_config(page_title="HubSync: AI Assitant")
@@ -98,18 +103,23 @@ langchain.verbose = True
 # Session ID emulator to handle document searchs
 SESSION_ID = "123456"
 # Instance chat retrieval
-retriever, chat_retrieval = instance_chat(debug=True, session_id = SESSION_ID)
+splitter, retriever, chat_retrieval, sugestter = instance_chat(debug=True)
 # set chat history
 chat_history = []
 # Setup memory for contextual conversation
 msgs = StreamlitChatMessageHistory()
 # define avatar
 avatars = {"human": "user", "ai": "assistant"}
-
+# Add set of options as a sidebar to use the text analysis modules
+options = ["Query", "Clause suggestions",
+           "Summarize Text", "Change Tone", "Rephrase Text"]
 
 if __name__ == "__main__":
     # File uploader widget
     uploaded_file = st.sidebar.file_uploader("Upload a PDF file", type=["pdf"])
+
+    # Create a selectbox for the user to choose an option
+    selected_option = st.sidebar.selectbox("Select an action:", options)
 
     if not uploaded_file:
         st.info("Please upload PDF documents to continue.")
@@ -126,7 +136,9 @@ if __name__ == "__main__":
             st.text("The temporary directory will be removed when the app is closed.")
             # load the file
             with st.spinner("Creating embeddings for document..."):
-                retriever.store_document(path_file=temp_file_path, session_id=SESSION_ID)
+                docs = splitter.process_document(path_file=temp_file_path)
+                retriever.store_document(
+                    docs=docs, session_id=SESSION_ID, replace_docs=True)
 
         # preview the file
         if st.session_state.temp_file_path:
@@ -139,8 +151,9 @@ if __name__ == "__main__":
         # add loader message
         with st.spinner("Processing document suggestions..."):
             # run chat retrieval
-            # response = chat_retrieval.run(INIT_QUERY)
-            response = "Hi"
+            response = "Hi, I'm HubSync's AI Assistant. I can help you with your document. What would you like to do?"
+            # response = asyncio.run(sugestter.run(text=docs[0].page_content))
+
             # add message to chat history
             msgs.add_ai_message(response)
             # add chat_history
@@ -150,11 +163,6 @@ if __name__ == "__main__":
     for msg in msgs.messages:
         st.chat_message(avatars[msg.type]).write(msg.content)
 
-    # Add set of options as a sidebar to use the text analysis modules
-    options = ["Query", "Summarize Text", "Change Tone", "Rephrase Text"]
-
-    # Create a selectbox for the user to choose an option
-    selected_option = st.sidebar.selectbox("Select an action:", options)
     if selected_option == "Change Tone":
         tone = st.sidebar.text_input("Write down a desired tone description")
         print("Outside Option -> Tone selected: ", tone)
@@ -167,18 +175,23 @@ if __name__ == "__main__":
         msgs.add_user_message(user_query)
 
         if selected_option == "Query":
-        
+
             with st.chat_message("assistant"):
                 # setup callback
                 stream_handler = StreamHandler(st.empty())
-                retrieval_handler = PrintRetrievalHandler(st.container())        
+                retrieval_handler = PrintRetrievalHandler(st.container())
                 # run chat retrieval
                 response = chat_retrieval.run(
                     user_query,
                     chat_history=chat_history,
                     callbacks=[stream_handler, retrieval_handler],
+                    session_id=SESSION_ID
                 )
         # Choose from the other Text Transform Options
+        elif selected_option == "Clause suggestions":
+            print("Selected: Clause suggestions")
+            response = parragraph_suggestion(
+                text=user_query, llm=chat_retrieval.llm)
         elif selected_option == "Summarize Text":
             print("Selected: Summarize")
             response = summarize_text(
@@ -205,5 +218,3 @@ if __name__ == "__main__":
         st.chat_message("assistant").write(response)
         # add chat_history
         chat_history.append((user_query, response))
-
-        

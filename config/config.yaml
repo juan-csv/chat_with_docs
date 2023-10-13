@@ -1,0 +1,21 @@
+base_llm:
+  type_llm: "openai" # "bedrock" or "openai"
+  temperature: 0.0
+
+openai_llm:
+  model_name: "gpt-3.5-turbo-16k"
+
+bedrock_llm:
+  model_name: "ai21.j2-ultra-v1"
+  region_name: "us-east-1"
+  embeding_model_name:
+
+splitter:
+  chunk_size: 1500
+  chunk_overlap: 200
+
+retriever:
+  opensearch_index_name: "hubsync-ai-assistant"
+
+conversational_chain:
+  chain_type_retriever: "stuff"

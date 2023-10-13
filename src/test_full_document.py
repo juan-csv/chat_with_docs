@@ -120,7 +120,7 @@ parser_reduce = PydanticOutputParser(pydantic_object=MapOutput)
 # Prompts
 # ----------------------------------------------------------------------------------------------------------------
 # ----------------------------------------------------------------------------------------------------------------
-prompt_doc = PromptTemplate(
+PROMPT_DOC = PromptTemplate(
     template="{page_content}",
     input_variables=["page_content"]
 )

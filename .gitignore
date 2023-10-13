@@ -8,9 +8,9 @@ wandb
 *.pyc
 
 # files
-config
 streamlit_*
-
+secrets.yaml
+*.pkl
 # env
 env 
 
