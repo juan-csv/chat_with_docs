@@ -26,6 +26,8 @@ def set_env_var(config):
     os.environ["OPENSEARCH_PORT"] = config['OPENSEARCH_PORT']
     os.environ["OPENSEARCH_USER"] = config['OPENSEARCH_USER']
     os.environ["OPENSEARCH_PWD"] = config['OPENSEARCH_PWD']
+    os.environ['OPENSEARCH_AWS_HOST'] = config['OPENSEARCH_AWS_HOST']
+    os.environ['OPENSEARCH_AWS_PORT'] = config['OPENSEARCH_AWS_PORT']
 
 
 

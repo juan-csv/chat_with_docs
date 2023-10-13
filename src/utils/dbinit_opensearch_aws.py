@@ -1,9 +1,10 @@
 """ Chroma DB script to initialize DB with an empty collection"""
 
 import os
-from opensearchpy import OpenSearch
-from langchain.embeddings.openai import OpenAIEmbeddings
-from langchain.vectorstores import OpenSearchVectorSearch
+from opensearchpy import OpenSearch, RequestsHttpConnection,AWSV4SignerAuth
+import boto3
+import time
+
 
 if True:
     import sys
@@ -59,30 +60,38 @@ BODY_CREATE_INDEX_DEFAULT = {
     }
 
 
+
 def main(debug: bool):
     """Main routine to initialize the AI Assistant database"""
     # loading config file:
     config = load_config(debug=debug)
+    print('Config loaded')
     # Setting env var for connection
     set_env_var(config)
+    print('ENV set')
     # Create the connection
-    host = os.getenv("OPENSEARCH_HOST")
-    port = os.getenv("OPENSEARCH_PORT")
-    user = os.getenv("OPENSEARCH_USER")
-    pwd = os.getenv("OPENSEARCH_PWD")
+    host = os.getenv("OPENSEARCH_AWS_HOST")
+    port = os.getenv("OPENSEARCH_AWS_PORT")
+    print('Connection params: ', host, ' - ', port)
 
-    print(host, port, user, pwd)
-
-    # Connect to OpenSearch Local DB
+    #aws auth4
+    service = 'aoss'
+    region = 'us-east-1'
+    credentials = boto3.Session().get_credentials()
+    awsauth = AWSV4SignerAuth(credentials, region, service)
+    # Connect to OpenSearch SERVERLESS AWS
     client = OpenSearch(
-        hosts=[{"host": host, "port": port}],
-        http_auth=(user, pwd),
+        hosts=[{'host': host, 'port': port}],
+        http_auth=awsauth,
         use_ssl=True,
-        verify_certs=False,
-        ssl_assert_hostname=False,
-        ssl_show_warn=False,
+        verify_certs=True,
+        connection_class=RequestsHttpConnection,
+        timeout=300
     )
-    print(client.info())
+    print('Client OpenSearch created: ', client)
+
+    # Listing all indices:
+    print('Existing Aliases: ', client.indices.get_alias())
 
     # Check if the target index exists. If so, deletes it:
     if client.indices.exists(
@@ -92,10 +101,11 @@ def main(debug: bool):
             index=TARGET_INDEX_NAME
         )
         print('Delete Result: ', delete_result)
-
+    
+    time.sleep(10)
     # Create an index
     create_result = client.indices.create(
-        index='hubsync-ai-assistant',
+        index=TARGET_INDEX_NAME,
         body=BODY_CREATE_INDEX_DEFAULT
     )
     print('Creation Index Result: ', create_result)
