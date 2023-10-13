@@ -5,8 +5,10 @@ if True:
     sys.path.append("../")
 import os
 from langchain.embeddings.openai import OpenAIEmbeddings
+import boto3
 from langchain.embeddings import BedrockEmbeddings
 from src.utils.open_search_vector_search_cs import OpenSearchVectorSearchCS
+from opensearchpy import RequestsHttpConnection, AWSV4SignerAuth
 from src.utils.config import load_config
 import logging
 import boto3
@@ -40,17 +42,26 @@ class Retriever:
                 model_id=self.config['bedrock_llm']['embedding_model_name'],
             )
 
-        # Vector Store Init
+        # Vector Store Init (AWS Based)
+
+        # AWS auth
+        service = self.config['retriever']['aws_service']
+        region = self.config['retriever']['aws_region']
+        credentials = boto3.Session().get_credentials()
+        awsauth = AWSV4SignerAuth(credentials, region, service)
+
+        # OpenSearch store
         self.vector_store = OpenSearchVectorSearchCS(
-            opensearch_url=f"https://{ os.getenv('OPENSEARCH_HOST') }:{ os.getenv('OPENSEARCH_PORT') }",
+            opensearch_url= f"http://{os.getenv('OPENSEARCH_AWS_HOST')}:{os.getenv('OPENSEARCH_AWS_PORT')}",
             embedding_function=embedding_function,
-            http_auth=(os.getenv("OPENSEARCH_USER"),
-                       os.getenv("OPENSEARCH_PWD")),
+            http_auth=awsauth,
             index_name=self.index_name,
             use_ssl=True,
             verify_certs=False,
             ssl_assert_hostname=False,
             ssl_show_warn=False,
+            connection_class=RequestsHttpConnection,
+            timeout=300
         )
 
         # DB Client
@@ -76,21 +87,25 @@ class Retriever:
 
         if replace_docs:
             # Search documents
-            delete_response = self.client.delete_by_query(
-                index=self.index_name,
-                body={
-                    "query": {
-                        "bool": {
-                            "must": {
-                                "match": {
-                                    "metadata.session_id":  session_id
+            try:
+                delete_response = self.client.delete_by_query(
+                    index=self.index_name,
+                    body={
+                        "query": {
+                            "bool": {
+                                "must": {
+                                    "match": {
+                                        "metadata.session_id":  session_id
+                                        }
+                                    }
                                 }
                             }
                         }
-                    }
-                }
-            )
-            logging.info(delete_response)
+                )
+                logging.info(delete_response)
+            except Exception as error:
+                print('Error: ', error)
+                pass
 
-        # Store in vector store
-        self.vector_store.add_documents(documents=docs)
+            # Store in vector store
+            self.vector_store.add_documents(documents=docs)

@@ -2,8 +2,6 @@
 
 import os
 from opensearchpy import OpenSearch
-from langchain.embeddings.openai import OpenAIEmbeddings
-from langchain.vectorstores import OpenSearchVectorSearch
 
 if True:
     import sys
