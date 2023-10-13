@@ -6,10 +6,12 @@ if True:
 import os
 from langchain.embeddings.openai import OpenAIEmbeddings
 import boto3
+from langchain.embeddings import BedrockEmbeddings
 from src.utils.open_search_vector_search_cs import OpenSearchVectorSearchCS
 from opensearchpy import RequestsHttpConnection, AWSV4SignerAuth
 from src.utils.config import load_config
 import logging
+import boto3
 
 
 class Retriever:
@@ -22,6 +24,23 @@ class Retriever:
         # Load config
         self.config = load_config(debug=self.debug)
         self.index_name = self.config['retriever']['opensearch_index_name']
+        self.type_llm = self.config['base_llm']['type_llm']
+
+        # Define embedding function
+        if self.type_llm == "openai":
+            # Instance embedding function
+            embedding_function = OpenAIEmbeddings()
+
+        if self.type_llm == "bedrock":
+            bedrock_client = boto3.client(
+                "bedrock-runtime",
+                region_name=self.config['bedrock_llm']['region_name'],
+            )
+            # Instance embedding function
+            embedding_function = BedrockEmbeddings(
+                client=bedrock_client,
+                model_id=self.config['bedrock_llm']['embedding_model_name'],
+            )
 
         # Vector Store Init (AWS Based)
 
@@ -34,7 +53,7 @@ class Retriever:
         # OpenSearch store
         self.vector_store = OpenSearchVectorSearchCS(
             opensearch_url= f"http://{os.getenv('OPENSEARCH_AWS_HOST')}:{os.getenv('OPENSEARCH_AWS_PORT')}",
-            embedding_function=OpenAIEmbeddings(),
+            embedding_function=embedding_function,
             http_auth=awsauth,
             index_name=self.index_name,
             use_ssl=True,

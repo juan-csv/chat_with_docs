@@ -2,10 +2,9 @@
 
 ## Mount OpenSearch Database
 
-Locate the OpenSearch docker compose file at external/opensearch
-
 ```python
-docker compose up
+python src/utils/dbinit_opensearch.py
+docker compose -f external/opensearch/docker-compose.yml up 
 ```
 
 ## How to run

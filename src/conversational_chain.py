@@ -30,15 +30,6 @@ class ChatRetrieval:
         # Instance LLM
         self.llm = base_llm()
 
-        self.llm_condense_question = ChatOpenAI(
-            temperature=self.config["conversational_chain"]["condense_question_llm"][
-                "temperature"
-            ],
-            model_name=self.config["conversational_chain"]["condense_question_llm"][
-                "model_name"
-            ],
-        )
-
     def run(
         self, query, chat_history: list = None, callbacks=None, session_id: str = ""
     ):
@@ -55,8 +46,9 @@ class ChatRetrieval:
             self.llm,
             self.retriever(session_id=session_id),
             verbose=self.debug,
-            # condense_question_llm=self.llm_condense_question,
-            combine_docs_chain_kwargs={"prompt": CONVERSATIONAL_RETRIEVAL_CHAIN},
+            # condense_question_llm=self.base_llm,
+            combine_docs_chain_kwargs={
+                "prompt": CONVERSATIONAL_RETRIEVAL_CHAIN},
         )
 
         if chat_history is None:

@@ -5,56 +5,55 @@ from opensearchpy import OpenSearch
 
 if True:
     import sys
-
     sys.path.append("../")
-from utils.config import load_config, set_env_var
+from src.utils.config import load_config, set_env_var
 
 TARGET_INDEX_NAME = 'hubsync-ai-assistant'
 BODY_CREATE_INDEX_DEFAULT = {
-        "aliases": {},
-        "mappings": {
-            "properties": {
-                "metadata": {
-                    "properties": {
-                        "session_id": {
-                            "type": "text",
-                            "fields": {
+    "aliases": {},
+    "mappings": {
+        "properties": {
+            "metadata": {
+                "properties": {
+                    "session_id": {
+                        "type": "text",
+                        "fields": {
                                 "keyword": {"type": "keyword", "ignore_above": 256}
-                            },
                         },
-                        "source": {
-                            "type": "text",
-                            "fields": {
+                    },
+                    "source": {
+                        "type": "text",
+                        "fields": {
                                 "keyword": {"type": "keyword", "ignore_above": 256}
-                            },
                         },
-                    }
-                },
-                "text": {
-                    "type": "text",
-                    "fields": {"keyword": {"type": "keyword", "ignore_above": 256}},
-                },
-                "vector_field": {
-                    "type": "knn_vector",
-                    "dimension": 1536,
-                    "method": {
+                    },
+                }
+            },
+            "text": {
+                "type": "text",
+                "fields": {"keyword": {"type": "keyword", "ignore_above": 256}},
+            },
+            "vector_field": {
+                "type": "knn_vector",
+                "dimension": 1536,
+                "method": {
                         "engine": "nmslib",
                         "space_type": "l2",
                         "name": "hnsw",
                         "parameters": {"ef_construction": 512, "m": 16},
-                    },
                 },
-            }
-        },
-        "settings": {
-            "index": {
-                "number_of_shards": "1",
-                "knn.algo_param": {"ef_search": "512"},
-                "knn": "true",
-                "number_of_replicas": "1",
-            }
-        },
-    }
+            },
+        }
+    },
+    "settings": {
+        "index": {
+            "number_of_shards": "1",
+            "knn.algo_param": {"ef_search": "512"},
+            "knn": "true",
+            "number_of_replicas": "1",
+        }
+    },
+}
 
 
 def main(debug: bool):

@@ -8,5 +8,6 @@ wandb
 *.pyc
 
 # files
-config
+config/secrets.yaml
 streamlit_*
+*.pkl
