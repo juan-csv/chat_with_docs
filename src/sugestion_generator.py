@@ -48,7 +48,10 @@ class SuggestionGenerator:
 
         # format output
         if return_dict:
-            return str(self.parse_output_suggestions(raw_output))
+            try:
+                return str(self.parse_output_suggestions(raw_output))
+            except:
+                return str(raw_output)
 
         # transform output to string
         return raw_output
@@ -161,6 +164,9 @@ if __name__ == "__main__":
     llm = BaseLLM(debug=debug)()
     # Instance
     suggestion = SuggestionGenerator(llm=llm, debug=debug)
+
+    # Test map chain
+
     # It's not possible run as in jupyer
     # run chain
     result = asyncio.run(suggestion.run(text=doc[:1000]))

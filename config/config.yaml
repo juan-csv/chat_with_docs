@@ -1,5 +1,5 @@
 base_llm:
-  type_llm: "openai" # "bedrock" or "openai"
+  type_llm: "bedrock" # "bedrock" or "openai"
   temperature: 0.0
 
 openai_llm:
@@ -7,8 +7,8 @@ openai_llm:
 
 bedrock_llm:
   model_name: "ai21.j2-ultra-v1"
+  embedding_model_name: "amazon.titan-embed-text-v1"
   region_name: "us-east-1"
-  embeding_model_name:
 
 splitter:
   chunk_size: 1500

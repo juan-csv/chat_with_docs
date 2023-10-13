@@ -151,8 +151,8 @@ if __name__ == "__main__":
         # add loader message
         with st.spinner("Processing document suggestions..."):
             # run chat retrieval
-            response = "Hi, I'm HubSync's AI Assistant. I can help you with your document. What would you like to do?"
-            # response = asyncio.run(sugestter.run(text=docs[0].page_content))
+            # response = "Hi, I'm HubSync's AI Assistant. I can help you with your document. What would you like to do?"
+            response = asyncio.run(sugestter.run(text=docs[0].page_content))
 
             # add message to chat history
             msgs.add_ai_message(response)

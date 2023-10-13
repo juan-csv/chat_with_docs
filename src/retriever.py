@@ -5,10 +5,10 @@ if True:
     sys.path.append("../")
 import os
 from langchain.embeddings.openai import OpenAIEmbeddings
+from langchain.embeddings import BedrockEmbeddings
 from src.utils.open_search_vector_search_cs import OpenSearchVectorSearchCS
 from src.utils.config import load_config
 import logging
-from langchain.llms.bedrock import Bedrock
 import boto3
 
 
@@ -34,10 +34,10 @@ class Retriever:
                 "bedrock-runtime",
                 region_name=self.config['bedrock_llm']['region_name'],
             )
-            # Instance LLM
-            llm = Bedrock(
-                model_id=self.config['bedrock_llm']['model_name'],
-                client=bedrock_client
+            # Instance embedding function
+            embedding_function = BedrockEmbeddings(
+                client=bedrock_client,
+                model_id=self.config['bedrock_llm']['embedding_model_name'],
             )
 
         # Vector Store Init
