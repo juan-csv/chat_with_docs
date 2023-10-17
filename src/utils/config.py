@@ -41,10 +41,6 @@ def load_secrets(debug):
 def set_env_var(config):
     """Set env variables"""
     os.environ['OPENAI_API_KEY'] = config['OPENAI_API_KEY']
-    os.environ["OPENSEARCH_HOST"] = config['OPENSEARCH_HOST']
-    os.environ["OPENSEARCH_PORT"] = config['OPENSEARCH_PORT']
-    os.environ["OPENSEARCH_USER"] = config['OPENSEARCH_USER']
-    os.environ["OPENSEARCH_PWD"] = config['OPENSEARCH_PWD']
     os.environ['OPENSEARCH_AWS_HOST'] = config['OPENSEARCH_AWS_HOST']
     os.environ['OPENSEARCH_AWS_PORT'] = config['OPENSEARCH_AWS_PORT']
 
