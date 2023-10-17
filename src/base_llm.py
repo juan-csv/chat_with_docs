@@ -55,7 +55,12 @@ class BaseLLM:
             # Instance LLM
             llm = Bedrock(
                 model_id=self.config['bedrock_llm']['model_name'],
-                client=bedrock_client
+                client=bedrock_client,
+                model_kwargs={
+                    "temperature": self.config['base_llm']['temperature'],
+                    "topP": self.config['bedrock_llm']['topP'],
+                    "maxTokens": self.config['bedrock_llm']['maxTokens']
+                }
             )
 
         return llm
