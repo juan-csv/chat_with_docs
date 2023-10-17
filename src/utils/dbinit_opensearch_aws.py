@@ -9,8 +9,8 @@ import time
 if True:
     import sys
 
-    sys.path.append("../")
-from utils.config import load_config, set_env_var
+    sys.path.append("../../")
+from src.utils.config import load_config, set_env_var
 
 TARGET_INDEX_NAME = 'hubsync-ai-assistant'
 BODY_CREATE_INDEX_DEFAULT = {
