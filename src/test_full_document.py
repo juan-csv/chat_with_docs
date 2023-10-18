@@ -163,14 +163,13 @@ Do this for the top 3 suggestions.
 Do not add any other text to the output.
 Do not add numbers or letters or make any modification to the keys "Original parragraph", "Modified parragraph" and "Explanation".
 
-{format_instructions}
-
+Response:
 """
 prompt_reduce = PromptTemplate(
     template=prompt_reduce_temp,
     input_variables=["context"],
-    partial_variables={
-        "format_instructions": parser_reduce.get_format_instructions()},
+    # partial_variables={
+    #    "format_instructions": parser_reduce.get_format_instructions()},
 )
 
 
@@ -182,7 +181,6 @@ map_chain = LLMChain(
     llm=llm,
     prompt=prompt_map,
     verbose=debug,
-
 )
 
 # create reduce chain
@@ -195,7 +193,7 @@ reduce_chain = LLMChain(
 # transform list of docs to string
 docs_to_string_chain = StuffDocumentsChain(
     llm_chain=reduce_chain,
-    document_prompt=prompt_doc,
+    document_prompt=PROMPT_DOC,
     document_variable_name=document_variable_name)
 
 # Combine docs by recursivelly reducing them
@@ -220,13 +218,15 @@ spliiter = RecursiveCharacterTextSplitter(
     chunk_size=chunk_size,
     chunk_overlap=chunk_overlap
 )
-chunks = spliiter.split_documents(doc)[:1]
+chunks = spliiter.split_documents(doc)[:4]
 # pprint(chunks[3].to_json()['kwargs']['page_content'])
 
 # Run Map redcue chain
 # ----------------------------------------------------------------------------------------------------------------
 # ----------------------------------------------------------------------------------------------------------------
 astart_time = time.time()
+
+print(map_chain.run(chunks))
 
 
 async def run():
@@ -235,11 +235,13 @@ async def run():
 res = run()
 if type(res) == list:
     res = res[0]
+print(res)
 
 aend_time = time.time()
 
 start_time = time.time()
 final_res = map_reduce_chain.run(chunks)
+print(final_res)
 end_time = time.time()
 print("--- %s sequential seconds ---" %
       (end_time - start_time))      # 1-31.8 | 4-50.2 | 10-170 seconds

@@ -9,7 +9,7 @@ bedrock_llm:
   model_name: "ai21.j2-ultra-v1"
   embedding_model_name: "amazon.titan-embed-text-v1"
   region_name: "us-east-1"
-  topP: 0.09
+  topP: 1
   maxTokens: 8191
 
 splitter:
@@ -17,6 +17,8 @@ splitter:
   chunk_overlap: 200
 
 retriever:
+  aws_service: "aoss"
+  aws_region: "us-east-1"
   opensearch_index_name: "hubsync-ai-assistant"
 
 conversational_chain:

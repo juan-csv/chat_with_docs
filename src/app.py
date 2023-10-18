@@ -81,7 +81,8 @@ def instance_chat(debug=False):
     retriever = Retriever(debug=debug)
     base_llm = BaseLLM(debug=debug, streaming=True)
     chat_retrieval = ChatRetrieval(retriever=retriever, base_llm=base_llm)
-    sugestter = SuggestionGenerator(llm=chat_retrieval.llm, debug=debug)
+    sugestter = SuggestionGenerator(
+        llm=chat_retrieval.llm, type_llm=base_llm.type_llm, debug=debug)
     return splitter, retriever, chat_retrieval, sugestter
 
 
@@ -148,7 +149,7 @@ if __name__ == "__main__":
     if len(msgs.messages) == 0:
         # create
         # msgs.clear()
-        # add loader message
+        # add loader message:q
         with st.spinner("Processing document suggestions..."):
             # run chat retrieval
             # response = "Hi, I'm HubSync's AI Assistant. I can help you with your document. What would you like to do?"

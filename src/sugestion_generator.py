@@ -9,15 +9,20 @@ from langchain.chains import LLMChain
 import asyncio
 import json
 
+
 # local imports
-from src.prompts.prompts_template import PROMPT_DOC, PROMPT_MAP_SUGGESTION, PROMPT_REDUCE_SUGGESTION
+from src.utils.config import load_config
 
 
 class SuggestionGenerator:
 
-    def __init__(self, llm, debug: bool = False) -> None:
+    def __init__(self, llm, type_llm: str, debug: bool = False) -> None:
         self.debug = debug
         self.llm = llm
+        self.type_llm = type_llm
+
+        # get prompts
+        self.PROMPT_DOC, self.PROMPT_MAP_SUGGESTION, self.PROMPT_REDUCE_SUGGESTION = self.get_prompts()
 
         # Instance splitter
         self.splitter = RecursiveCharacterTextSplitter(
@@ -56,24 +61,58 @@ class SuggestionGenerator:
         # transform output to string
         return raw_output
 
+    def run_sync(self, text, return_dict: bool = True):
+        """Run the suggestion generator"""
+        # split in chunks
+        chunks = self.splitter.split_text(text)
+
+        # transform all chunks (string) to Document type
+        chunks_docs = [langchain.schema.document.Document(
+            page_content=chunk) for chunk in chunks]
+
+        # run map reduce in parrallel
+        raw_output = self.map_reduce_chain.run(chunks_docs)
+
+        # Parse output
+        if type(raw_output) == list:
+            raw_output = raw_output[0]
+
+        # format output
+        if return_dict:
+            try:
+                return str(self.parse_output_suggestions(raw_output))
+            except:
+                return str(raw_output)
+
+        # transform output to string
+        return raw_output
+
+    def get_prompts(self):
+        """Return prompts"""
+        if self.type_llm == "bedrock":
+            from src.prompts.prompts_template_bedrock import PROMPT_DOC, PROMPT_MAP_SUGGESTION, PROMPT_REDUCE_SUGGESTION
+        else:
+            from src.prompts.prompts_template import PROMPT_DOC, PROMPT_MAP_SUGGESTION, PROMPT_REDUCE_SUGGESTION
+        return PROMPT_DOC, PROMPT_MAP_SUGGESTION, PROMPT_REDUCE_SUGGESTION
+
     def build_map_reduce_suugestion_chain(self):
         # create map chain
         map_chain = LLMChain(
             llm=self.llm,
-            prompt=PROMPT_MAP_SUGGESTION,
+            prompt=self.PROMPT_MAP_SUGGESTION,
             verbose=self.debug)
 
         # create reduce chain
         reduce_chain = LLMChain(
             llm=self.llm,
-            prompt=PROMPT_REDUCE_SUGGESTION,
+            prompt=self.PROMPT_REDUCE_SUGGESTION,
             verbose=self.debug
         )
 
         # transform list of docs to string
         docs_to_string_chain = StuffDocumentsChain(
             llm_chain=reduce_chain,
-            document_prompt=PROMPT_DOC,
+            document_prompt=self.PROMPT_DOC,
             document_variable_name='context')
 
         # Combine docs by recursivelly reducing them
@@ -161,14 +200,18 @@ if __name__ == "__main__":
     # read document
     doc = PDFMinerLoader(path_file).load()[0].page_content
 
-    llm = BaseLLM(debug=debug)()
+    llm_base = BaseLLM(debug=debug)
     # Instance
-    suggestion = SuggestionGenerator(llm=llm, debug=debug)
+    suggestion = SuggestionGenerator(
+        llm=llm_base.llm,
+        type_llm=llm_base.type_llm,
+        debug=debug)
 
     # Test map chain
 
-    # It's not possible run as in jupyer
     # run chain
-    result = asyncio.run(suggestion.run(text=doc[:1000]))
-    print(type(result))
+    result = suggestion.run_sync(text=doc[:1000], return_dict=False)
+
+    # It's not possible run as in jupyer
+    # result = asyncio.run(suggestion.run(text=doc[:1000]))
     print(result)
