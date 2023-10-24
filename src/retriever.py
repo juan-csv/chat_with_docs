@@ -9,10 +9,15 @@ import boto3
 from langchain.embeddings import BedrockEmbeddings
 from src.utils.open_search_vector_search_cs import OpenSearchVectorSearchCS
 from opensearchpy import RequestsHttpConnection, AWSV4SignerAuth
+from opensearchpy.exceptions import NotFoundError
 from src.utils.config import load_config
 import logging
 import boto3
 
+
+
+class RetrieverException(Exception):
+    """Custom Exception class for Retriever Module"""
 
 class Retriever:
     """Retriever class"""
@@ -82,8 +87,11 @@ class Retriever:
         """add session_id to docs in docs_lst -> store in chroma"""
 
         # Adding session as metadata for each piece of document
-        for doc in docs:
-            doc.metadata["session_id"] = session_id
+        try:
+            for doc in docs:
+                doc.metadata["session_id"] = session_id
+        except Exception as error: 
+            return False
 
         if replace_docs:
             # Search documents
@@ -103,9 +111,14 @@ class Retriever:
                         }
                 )
                 logging.info(delete_response)
-            except Exception as error:
-                print('Error: ', error)
+            except NotFoundError as error:
+                print('Documents to replace not found: ', error)
                 pass
 
-            # Store in vector store
-            self.vector_store.add_documents(documents=docs)
+            try: 
+                # Store in vector store
+                self.vector_store.add_documents(documents=docs)
+            except Exception as error: 
+                return False 
+            
+            return True 
