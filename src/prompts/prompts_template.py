@@ -32,7 +32,8 @@ Answer:
 # ---------------------------------------------------------
 
 summarize_prompt_template = """Summarize the following text. Keep the original language in 
-which the text is written.\nText: {text}"""
+which the text is written. The summary has to be shorter than the original text. Don't add up or make up
+any information not present in the original text.\nText: {text}"""
 SUMMARIZE_CHAIN = PromptTemplate.from_template(summarize_prompt_template)
 
 change_of_tone_prompt_template = "Rewrite the following text to match a {tone_description} tone.\nText: {text}"
