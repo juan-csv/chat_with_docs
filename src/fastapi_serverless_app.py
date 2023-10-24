@@ -119,9 +119,10 @@ async def handle_paragraph_suggestion_exception(_, exc:ParagraphSuggestionExcept
 
 # Summary
 class SummarizeItem(BaseModel):
-    input_text : str = "This is a text to summarize"
+    input_text : str 
     
     class Config:
+        
         schema_extra = {
             "examples": [
                 {
@@ -151,6 +152,7 @@ class RephraseItem(BaseModel):
     input_text : str
 
     class Config:
+        
         schema_extra = {
             "examples" : [
                 {
@@ -167,7 +169,6 @@ It's a powerful, widely-used tool that takes millions of URLs and links offline 
 async def rephrase(
         rephrase_item : RephraseItem
 ):
-    
     rephrase = rephrase_text(
         text=rephrase_item.input_text,
         llm=components['chat_retrieval'].llm, 
