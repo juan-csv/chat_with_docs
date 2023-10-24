@@ -5,7 +5,8 @@ import boto3
 if True:
     import sys
     sys.path.append("../")
-from src.utils.config import load_config
+#from src.utils.config import load_config
+from src.utils.config_aws import load_config
 
 
 class BaseLLM:
