@@ -1,5 +1,6 @@
 from langchain.chat_models import ChatOpenAI
 from langchain.llms.bedrock import Bedrock
+from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
 import boto3
 if True:
     import sys
@@ -36,6 +37,10 @@ class BaseLLM:
 
     def instance_model(self):
         """Return llm"""
+        if self.streaming:
+            callbacks = [StreamingStdOutCallbackHandler()]
+        else:
+            callbacks = None
 
         if self.type_llm == "openai":
             # Instance LLM
@@ -43,7 +48,8 @@ class BaseLLM:
                 temperature=self.config['base_llm']['temperature'],
                 model_name=self.config['openai_llm']['model_name'],
                 streaming=self.streaming,
-                model_kwargs={'top_p': 0.09}
+                model_kwargs={'top_p': 0.09},
+                callbacks=callbacks
             )
 
         if self.type_llm == "bedrock":
@@ -60,7 +66,8 @@ class BaseLLM:
                     "temperature": self.config['base_llm']['temperature'],
                     "topP": self.config['bedrock_llm']['topP'],
                     "maxTokens": self.config['bedrock_llm']['maxTokens']
-                }
+                },
+                callbacks=callbacks
             )
 
         return llm
@@ -71,7 +78,7 @@ if __name__ == "__main__":
     from langchain.chains import LLMChain
     from promptwatch import PromptWatch
 
-    base_llm = BaseLLM(debug=True)
+    base_llm = BaseLLM(debug=True, streaming=True, type_model="openai")
     query = "create history about a wizard"
 
     prompt = PromptTemplate(
@@ -81,11 +88,11 @@ if __name__ == "__main__":
     )
 
     llm_chain = LLMChain(
-        llm=base_llm(), prompt=prompt, llm_kwargs={"temperature": 0.0})
+        llm=base_llm(), prompt=prompt)
+
+    # with PromptWatch(api_key="NEdXMTIyT21GbGJEc1RIODJUTDhwNktNWllVMjo2MzE3Yzc5YS0zYTAzLTU0MWItYTJkYi1iZmIxZThjY2NjMTQ=") as pw:
+    # res = base_llm.llm.predict(query)
+    # print(res)
 
     response = llm_chain.run(query=query)
     print(f"response: {response}")
-
-    with PromptWatch(api_key="NEdXMTIyT21GbGJEc1RIODJUTDhwNktNWllVMjo2MzE3Yzc5YS0zYTAzLTU0MWItYTJkYi1iZmIxZThjY2NjMTQ=") as pw:
-        res = base_llm.llm.predict(query)
-        print(res)
