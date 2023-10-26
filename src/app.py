@@ -16,7 +16,7 @@ from src.utils.define_inputs import (
     RephraseItem,
     SummarizeItem
 )
-from src.text_analysis_chains import (
+from src_old.text_analysis_chains import (
     summarize_text,
     SummarizeException,
     change_of_tone_text,
