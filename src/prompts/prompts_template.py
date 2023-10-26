@@ -12,21 +12,23 @@ Explain why it's necessary the modification."""
 # ---------------------------------------------------------
 # ConversationalRetrievalChain
 # ---------------------------------------------------------
-prompt_template = """Use the following pieces of context to answer the users question.
-If you don't know the answer, just say that you don't know, don't try to make up an answer.
-{context}
-
-Human: {question}"""
-CONVERSATIONAL_RETRIEVAL_CHAIN = PromptTemplate(
-    template=prompt_template, input_variables=["context", "question"]
+prompt_template = """You are an assistant for question-answering tasks. Use the following pieces of retrieved context to answer the question. If you don't know the answer, just say that you don't know. Use three sentences maximum and keep the answer concise.
+Question: {question} 
+Context: {context} 
+Chat History: {chat_history}
+Answer:
+"""
+CONVERSATIONAL_RETRIEVAL_CHAIN_V2 = PromptTemplate(
+    template=prompt_template, input_variables=["context", "question", "chat_history"]
 )
 
 
-CONVERSATIONAL_RETRIEVAL_CHAIN_V2 = """You are an assistant for question-answering tasks. Use the following pieces of retrieved context to answer the question. If you don't know the answer, just say that you don't know. Use three sentences maximum and keep the answer concise.
-Question: {question} 
-Context: {context} 
-Answer:
-"""
+# CONVERSATIONAL_RETRIEVAL_CHAIN_V2 = """You are an assistant for question-answering tasks. Use the following pieces of retrieved context to answer the question. If you don't know the answer, just say that you don't know. Use three sentences maximum and keep the answer concise.
+# Question: {question} 
+# Context: {context} 
+# Chat History: {chat_history}
+# Answer:
+# """
 # ---------------------------------------------------------
 # Text Analysis Chains
 # ---------------------------------------------------------

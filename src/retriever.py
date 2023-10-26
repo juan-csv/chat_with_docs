@@ -24,78 +24,88 @@ class Retriever:
 
     def __init__(self, debug=False):
         """Retriever class"""
-        self.debug = debug
+        try:
+            self.debug = debug
 
-        # Load config
-        self.config = load_config(debug=self.debug)
-        self.index_name = self.config['retriever']['opensearch_index_name']
-        self.type_llm = self.config['base_llm']['type_llm']
+            # Load config
+            self.config = load_config(debug=self.debug)
+            self.index_name = self.config['retriever']['opensearch_index_name']
+            self.type_llm = self.config['base_llm']['type_llm']
 
-        # Define embedding function
-        if self.type_llm == "openai":
-            # Instance embedding function
-            embedding_function = OpenAIEmbeddings()
+            # Define embedding function
+            if self.type_llm == "openai":
+                # Instance embedding function
+                embedding_function = OpenAIEmbeddings()
 
-        if self.type_llm == "bedrock":
-            bedrock_client = boto3.client(
-                "bedrock-runtime",
-                region_name=self.config['bedrock_llm']['region_name'],
+            if self.type_llm == "bedrock":
+                bedrock_client = boto3.client(
+                    "bedrock-runtime",
+                    region_name=self.config['bedrock_llm']['region_name'],
+                )
+                # Instance embedding function
+                embedding_function = BedrockEmbeddings(
+                    client=bedrock_client,
+                    model_id=self.config['bedrock_llm']['embedding_model_name'],
+                )
+
+            # Vector Store Init (AWS Based)
+
+            # AWS auth
+            service = self.config['retriever']['aws_service']
+            region = self.config['retriever']['aws_region']
+            credentials = boto3.Session().get_credentials()
+            awsauth = AWSV4SignerAuth(credentials, region, service)
+
+            # OpenSearch store
+            self.vector_store = OpenSearchVectorSearchCS(
+                opensearch_url= f"http://{os.getenv('OPENSEARCH_AWS_HOST')}:{os.getenv('OPENSEARCH_AWS_PORT')}",
+                embedding_function=embedding_function,
+                http_auth=awsauth,
+                index_name=self.index_name,
+                use_ssl=True,
+                verify_certs=False,
+                ssl_assert_hostname=False,
+                ssl_show_warn=False,
+                connection_class=RequestsHttpConnection,
+                timeout=300
             )
-            # Instance embedding function
-            embedding_function = BedrockEmbeddings(
-                client=bedrock_client,
-                model_id=self.config['bedrock_llm']['embedding_model_name'],
-            )
 
-        # Vector Store Init (AWS Based)
-
-        # AWS auth
-        service = self.config['retriever']['aws_service']
-        region = self.config['retriever']['aws_region']
-        credentials = boto3.Session().get_credentials()
-        awsauth = AWSV4SignerAuth(credentials, region, service)
-
-        # OpenSearch store
-        self.vector_store = OpenSearchVectorSearchCS(
-            opensearch_url= f"http://{os.getenv('OPENSEARCH_AWS_HOST')}:{os.getenv('OPENSEARCH_AWS_PORT')}",
-            embedding_function=embedding_function,
-            http_auth=awsauth,
-            index_name=self.index_name,
-            use_ssl=True,
-            verify_certs=False,
-            ssl_assert_hostname=False,
-            ssl_show_warn=False,
-            connection_class=RequestsHttpConnection,
-            timeout=300
-        )
-
-        # DB Client
-        self.client = self.vector_store.client
+            # DB Client
+            self.client = self.vector_store.client
+        
+        except Exception as error:
+            raise RetrieverException(
+                f"Exception caught in Retriever module - init: {error}"
+            ) 
 
     def __call__(self, session_id):
         """Return retriever"""
-        return self.vector_store.as_retriever(
-            search_kwargs={
-                "search_type": "script_scoring",
-                "pre_filter": {
-                    "bool": {"filter": {"term": {"metadata.session_id": session_id}}}
-                },
-            }
-        )
+        try:
+            return self.vector_store.as_retriever(
+                search_kwargs={
+                    "search_type": "script_scoring",
+                    "pre_filter": {
+                        "bool": {"filter": {"term": {"metadata.session_id": session_id}}}
+                    },
+                }
+            )
+        except Exception as error:
+            raise RetrieverException(
+                f"Exception caught in Retriever module - __call__: {error}"
+            )
 
     def store_document(self, docs: list, session_id: str, replace_docs: bool = False):
-        """add session_id to docs in docs_lst -> store in chroma"""
-
-        # Adding session as metadata for each piece of document
+        """add session_id to docs in docs_lst -> store in OpenSearch"""
         try:
-            for doc in docs:
-                doc.metadata["session_id"] = session_id
-        except Exception as error: 
-            return False
+            # Return variable
+            completed = False
 
-        if replace_docs:
+            # Adding session as metadata for each piece of document
+            for doc in docs:
+                    doc.metadata["session_id"] = session_id
+
             # Search documents
-            try:
+            if replace_docs:
                 delete_response = self.client.delete_by_query(
                     index=self.index_name,
                     body={
@@ -110,15 +120,18 @@ class Retriever:
                             }
                         }
                 )
-                logging.info(delete_response)
-            except NotFoundError as error:
-                print('Documents to replace not found: ', error)
-                pass
+                logging.info('Delete documents response: ', delete_response)
 
-            try: 
-                # Store in vector store
                 self.vector_store.add_documents(documents=docs)
-            except Exception as error: 
-                return False 
-            
-            return True 
+                
+            completed = True
+            return completed
+        
+        except NotFoundError as error: # The exception raised when there is no document with the Session ID provided
+            logging.exception('Documents to replace not found - skipping: ', error)
+            pass
+        
+        except Exception as error:
+            raise RetrieverException(
+                f"Exception caught at Retriever module - store_document: {error}"
+            )

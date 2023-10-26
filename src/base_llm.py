@@ -7,25 +7,37 @@ if True:
 #from src.utils.config import load_config
 from src.utils.config_aws import load_config
 
+class BaseLLMException(Exception):
+    """Custom class for handling BaseLLM Exceptions"""
 
 class BaseLLM:
-    """Chat retrieval"""
+    """Base LLM"""
 
     def __init__(self, debug=False, streaming=False, type_model=None) -> None:
-        """Chat retrieval"""
-        self.debug = debug
-        self.config = load_config(debug=self.debug)
-        self.streaming = streaming
+        try:
+            """Base LLM"""
+            self.debug = debug
+            self.config = load_config(debug=self.debug)
+            self.streaming = streaming
 
-        # get type llm
-        self.type_llm = self.get_type_llm(type_model=type_model)
+            # get type llm
+            self.type_llm = self.get_type_llm(type_model=type_model)
 
-        # Instance LLM
-        self.llm = self.instance_model()
+            # Instance LLM
+            self.llm = self.instance_model()
+        except Exception as error:
+            raise BaseException(
+                f"Exception caught in BaseLLM Module - init: {error}"
+            )
 
     def __call__(self):
-        """Return chain"""
-        return self.llm
+        """Return llm"""
+        try:
+            return self.llm
+        except Exception as error:
+            raise BaseLLMException(
+                f"Exception caught in BaseLLM Module - __call__: {error}"
+            )
 
     def get_type_llm(self, type_model):
         """Return type llm"""
@@ -36,7 +48,7 @@ class BaseLLM:
         return type_llm
 
     def instance_model(self):
-        """Return llm"""
+        """Return instantiated llm"""
 
         if self.type_llm == "openai":
             # Instance LLM
@@ -87,6 +99,6 @@ if __name__ == "__main__":
     response = llm_chain.run(query=query)
     print(f"response: {response}")
 
-    with PromptWatch(api_key="NEdXMTIyT21GbGJEc1RIODJUTDhwNktNWllVMjo2MzE3Yzc5YS0zYTAzLTU0MWItYTJkYi1iZmIxZThjY2NjMTQ=") as pw:
+    with PromptWatch(api_key="") as pw:
         res = base_llm.llm.predict(query)
         print(res)
