@@ -97,6 +97,25 @@ class Retriever:
                 f"Exception caught in Retriever module - __call__: {error}"
             )
 
+    def ping_document(self, session_id:str):
+        """Ping document"""
+        response  = self.client.search(
+            index = self.index_name,
+            body={
+                "query": {
+                    "bool": {
+                        "must": {
+                            "match": {
+                                "metadata.session_id":  session_id
+                                }
+                            }
+                        }
+                    }
+                }
+        )
+        return response
+
+
     def store_document(self, docs: list, session_id: str, replace_docs: bool = False):
         """add session_id to docs in docs_lst -> store in OpenSearch"""
         try:

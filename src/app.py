@@ -142,6 +142,17 @@ async def upload_document_to_db(
 
     return response,  HTTPException(status_code=200)
 
+
+@app.post('/document/ping_document', tags=['documents'])
+async def ping_document(
+        session_id : str = Form(...),
+):
+    response = {
+        'response' :  components['retriever'].ping_document(session_id)
+    }
+    return response,  HTTPException(status_code=200)
+
+
 ## Text analysis
 @app.post('/ai_assistant/summarize', tags=['assistant'])
 async def summarize(
