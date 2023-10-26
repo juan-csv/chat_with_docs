@@ -16,3 +16,6 @@ env
 
 # environ vars
 .env
+
+# Test
+.pytest_cache

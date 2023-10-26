@@ -10,6 +10,10 @@ from src.utils.config import load_config
 logger = Logger(__name__).get_logger()
 
 
+class SplitterException(Exception):
+    """Custom class for Splitter Exception Handling"""
+
+
 class Splitter:
     """Splitter class"""
 
@@ -30,9 +34,11 @@ class Splitter:
                 chunk_size=self.chunk_size,
                 chunk_overlap=self.chunk_overlap,
             )
-        except Exception as e:
-            logger.error(f"Error initializing Splitter class: {e}")
-            raise e
+        except Exception as error:
+            logger.error(f"Error initializing Splitter class: {error}")
+            raise SplitterException(
+                f"Exception caught in Splitter module - init: {error}" 
+            )
 
     def process_document(self, path_file: str):
         """Read document -> split in chunks -> return documents list"""
@@ -44,9 +50,11 @@ class Splitter:
             else:
                 chunks = self.splitter.split_documents(doc)
             return chunks
-        except Exception as e:
-            logger.error(f"Error processing document: {e}")
-            raise e
+        except Exception as error:
+            logger.error(f"Error processing document: {error}")
+            raise SplitterException(
+                f"Exception caught in Splitter module - process_document: {error}"
+            )
 
 
 if __name__ == "__main__":

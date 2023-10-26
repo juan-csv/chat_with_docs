@@ -5,11 +5,16 @@ if True:
 
     sys.path.append("../")
 
-from src.prompts.prompts_template import CONVERSATIONAL_RETRIEVAL_CHAIN
+from src.prompts.prompts_template_bedrock import CONVERSATIONAL_RETRIEVAL_CHAIN_V2
+from src.base_llm import BaseLLM, BaseLLMException
+from src.retriever import RetrieverException
+from langchain.chains.question_answering import load_qa_chain
 from src.utils.logger import Logger
 # set logger
 logger = Logger(__name__).get_logger()
 
+class ChatRetrievalException(Exception): 
+    """Custom exception handling for ChatRetrieval module"""
 
 class ChatRetrieval:
     """Chat retrieval"""
@@ -28,9 +33,11 @@ class ChatRetrieval:
 
             # Instance LLM
             self.llm = base_llm()
-        except Exception as e:
-            logger.error(f"Error in ChatRetrieval: {e}")
-            raise e
+        except Exception as error:
+            logger.error(f"Error in ChatRetrieval: {error}")
+            raise ChatRetrievalException(
+                f"Exception caught in ChatRetrieval - init: {error}"
+            )
 
     def run(
         self, query, chat_history: list = None, callbacks=None, session_id: str = ""
@@ -51,7 +58,7 @@ class ChatRetrieval:
                 verbose=self.debug,
                 # condense_question_llm=self.base_llm,
                 combine_docs_chain_kwargs={
-                    "prompt": CONVERSATIONAL_RETRIEVAL_CHAIN},
+                    "prompt": CONVERSATIONAL_RETRIEVAL_CHAIN_V2},
             )
 
             if chat_history is None:
@@ -63,8 +70,12 @@ class ChatRetrieval:
 
             # update chat history
             self.chat_history.append((query, result["answer"]))
-        except Exception as e:
-            logger.error(f"Error in ChatRetrieval: {e}")
-            raise e
 
-        return result["answer"]
+            return result["answer"]
+        
+        except Exception as error:
+            logger.error(f"Error in ChatRetrieval: {error}")
+            raise ChatRetrievalException(
+            f"Exception caught in ChatRetrieval module - run: {error}"
+        )
+        

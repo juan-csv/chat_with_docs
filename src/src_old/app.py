@@ -11,7 +11,7 @@ from src.prompts.prompts_template import INIT_QUERY
 from src.splitter import Splitter
 from src.retriever import Retriever
 from src.base_llm import BaseLLM
-from src_old.text_analysis_chains import summarize_text, change_of_tone_text, rephrase_text, parragraph_suggestion
+from src.text_analysis_chains import summarize_text, change_of_tone_text, rephrase_text, parragraph_suggestion
 from src.sugestion_generator import SuggestionGenerator
 from src.utils.utils import save_tmp_file
 

@@ -12,12 +12,13 @@ from src.utils.logger import Logger
 # set logger
 logger = Logger(__name__).get_logger()
 
+class BaseLLMException(Exception):
+    """Custom class for handling BaseLLM Exceptions"""
 
 class BaseLLM:
-    """Chat retrieval"""
+    """Base LLM"""
 
     def __init__(self, debug=False, streaming=False, type_model=None) -> None:
-        """Chat retrieval"""
         try:
             self.debug = debug
             self.config = load_config(debug=self.debug)
@@ -28,13 +29,20 @@ class BaseLLM:
 
             # Instance LLM
             self.llm = self.instance_model()
-        except Exception as e:
-            logger.error(f"Error in BaseLLM: {e}")
-            raise e
+        except Exception as error:
+            logger.error(f"Error in BaseLLM: {error}")
+            raise BaseException(
+                f"Exception caught in BaseLLM Module - init: {error}"
+            )
 
     def __call__(self):
-        """Return chain"""
-        return self.llm
+        """Return llm"""
+        try:
+            return self.llm
+        except Exception as error:
+            raise BaseLLMException(
+                f"Exception caught in BaseLLM Module - __call__: {error}"
+            )
 
     def get_type_llm(self, type_model):
         """Return type llm"""
@@ -45,7 +53,7 @@ class BaseLLM:
         return type_llm
 
     def instance_model(self):
-        """Return llm"""
+        """Return instantiated llm"""
         try:
             if self.streaming:
                 callbacks = [StreamingStdOutCallbackHandler()]
@@ -102,9 +110,13 @@ if __name__ == "__main__":
     llm_chain = LLMChain(
         llm=base_llm(), prompt=prompt)
 
-    # with PromptWatch(api_key="NEdXMTIyT21GbGJEc1RIODJUTDhwNktNWllVMjo2MzE3Yzc5YS0zYTAzLTU0MWItYTJkYi1iZmIxZThjY2NjMTQ=") as pw:
+    # with PromptWatch(api_key="") as pw:
     # res = base_llm.llm.predict(query)
     # print(res)
 
     response = llm_chain.run(query=query)
     print(f"response: {response}")
+
+    with PromptWatch(api_key="") as pw:
+        res = base_llm.llm.predict(query)
+        print(res)

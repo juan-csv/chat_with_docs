@@ -75,35 +75,59 @@ class Retriever:
 
             # DB Client
             self.client = self.vector_store.client
-        except Exception as e:
-            logger.error(f"Error initializing Retriever: {e}")
-            raise e
+        except Exception as error:
+            logger.error(f"Error initializing Retriever: {error}")
+            raise RetrieverException(
+                f"Exception caught in Retriever module - init: {error}"
+            )
 
     def __call__(self, session_id):
         """Return retriever"""
-        return self.vector_store.as_retriever(
-            search_kwargs={
-                "search_type": "script_scoring",
-                "pre_filter": {
-                    "bool": {"filter": {"term": {"metadata.session_id": session_id}}}
-                },
-            }
+        try:
+            return self.vector_store.as_retriever(
+                search_kwargs={
+                    "search_type": "script_scoring",
+                    "pre_filter": {
+                        "bool": {"filter": {"term": {"metadata.session_id": session_id}}}
+                    },
+                }
+            )
+        except Exception as error:
+            raise RetrieverException(
+                f"Exception caught in Retriever module - __call__: {error}"
+            )
+
+    def ping_document(self, session_id:str):
+        """Ping document"""
+        response  = self.client.search(
+            index = self.index_name,
+            body={
+                "query": {
+                    "bool": {
+                        "must": {
+                            "match": {
+                                "metadata.session_id":  session_id
+                                }
+                            }
+                        }
+                    }
+                }
         )
+        return response
+
 
     def store_document(self, docs: list, session_id: str, replace_docs: bool = False):
-        """add session_id to docs in docs_lst -> store in chroma"""
-
-        # Adding session as metadata for each piece of document
+        """add session_id to docs in docs_lst -> store in OpenSearch"""
         try:
-            for doc in docs:
-                doc.metadata["session_id"] = session_id
-        except Exception as error:
-            logger.error(f"Error adding session_id to docs: {error}")
-            return False
+            # Return variable
+            completed = False
 
-        if replace_docs:
+            # Adding session as metadata for each piece of document
+            for doc in docs:
+                    doc.metadata["session_id"] = session_id
+
             # Search documents
-            try:
+            if replace_docs:
                 delete_response = self.client.delete_by_query(
                     index=self.index_name,
                     body={
@@ -118,17 +142,18 @@ class Retriever:
                         }
                     }
                 )
-                logging.info(delete_response)
-            except NotFoundError as error:
-                print('Documents to replace not found: ', error)
-                logger.info('Documents to replace not found: ', error)
-                pass
+                logger.info('Delete documents response: ', delete_response)
 
-            try:
-                # Store in vector store
                 self.vector_store.add_documents(documents=docs)
-            except Exception as error:
-                logger.error(f"Error storing documents: {error}")
-                return False
-
-            return True
+                
+            completed = True
+            return completed
+        
+        except NotFoundError as error: # The exception raised when there is no document with the Session ID provided
+            logger.exception('Documents to replace not found - skipping: ', error)
+            pass
+        
+        except Exception as error:
+            raise RetrieverException(
+                f"Exception caught at Retriever module - store_document: {error}"
+            )

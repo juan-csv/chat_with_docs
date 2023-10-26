@@ -15,6 +15,9 @@ from src.utils.logger import Logger
 # set logger
 logger = Logger(__name__).get_logger()
 
+class SuggestionGeneratorException(Exception):
+    """Custom class for handling Suggestion Generation Exceptions"""
+
 
 class SuggestionGenerator:
 
