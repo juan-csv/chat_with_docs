@@ -2,9 +2,12 @@
 if True:
     import sys
     sys.path.append("../")
-from src.utils.config import load_config
+from src.utils.logger import Logger
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.document_loaders import PDFMinerLoader
+from src.utils.config import load_config
+# set logger
+logger = Logger(__name__).get_logger()
 
 
 class SplitterException(Exception):
@@ -16,12 +19,12 @@ class Splitter:
 
     def __init__(self, debug=False):
         """Retriever class"""
-        try:    
+        try:
             self.debug = debug
 
             # Load config
             self.config = load_config(debug=self.debug)
-        
+
             # parameters
             self.chunk_size = self.config['splitter']['chunk_size']
             self.chunk_overlap = self.config['splitter']['chunk_overlap']
@@ -32,26 +35,26 @@ class Splitter:
                 chunk_overlap=self.chunk_overlap,
             )
         except Exception as error:
+            logger.error(f"Error initializing Splitter class: {error}")
             raise SplitterException(
                 f"Exception caught in Splitter module - init: {error}" 
             )
-    
-    def process_document(self, path_file:str):
+
+    def process_document(self, path_file: str):
         """Read document -> split in chunks -> return documents list"""
+        # Read document
         try:
-            # Read document
             doc = PDFMinerLoader(path_file).load()
-            # TODO: remove '5' it's just for debugging
             if self.debug:
                 chunks = self.splitter.split_documents(doc)[:5]
             else:
                 chunks = self.splitter.split_documents(doc)
             return chunks
         except Exception as error:
+            logger.error(f"Error processing document: {error}")
             raise SplitterException(
                 f"Exception caught in Splitter module - process_document: {error}"
             )
-
 
 
 if __name__ == "__main__":

@@ -1,11 +1,16 @@
 from langchain.chat_models import ChatOpenAI
 from langchain.llms.bedrock import Bedrock
+from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
 import boto3
 if True:
     import sys
     sys.path.append("../")
-#from src.utils.config import load_config
-from src.utils.config_aws import load_config
+# from src.utils.config import load_config
+from src.utils.config import load_config
+from src.utils.logger import Logger
+
+# set logger
+logger = Logger(__name__).get_logger()
 
 class BaseLLMException(Exception):
     """Custom class for handling BaseLLM Exceptions"""
@@ -15,7 +20,6 @@ class BaseLLM:
 
     def __init__(self, debug=False, streaming=False, type_model=None) -> None:
         try:
-            """Base LLM"""
             self.debug = debug
             self.config = load_config(debug=self.debug)
             self.streaming = streaming
@@ -26,6 +30,7 @@ class BaseLLM:
             # Instance LLM
             self.llm = self.instance_model()
         except Exception as error:
+            logger.error(f"Error in BaseLLM: {error}")
             raise BaseException(
                 f"Exception caught in BaseLLM Module - init: {error}"
             )
@@ -49,33 +54,42 @@ class BaseLLM:
 
     def instance_model(self):
         """Return instantiated llm"""
+        try:
+            if self.streaming:
+                callbacks = [StreamingStdOutCallbackHandler()]
+            else:
+                callbacks = None
 
-        if self.type_llm == "openai":
-            # Instance LLM
-            llm = ChatOpenAI(
-                temperature=self.config['base_llm']['temperature'],
-                model_name=self.config['openai_llm']['model_name'],
-                streaming=self.streaming,
-                model_kwargs={'top_p': 0.09}
-            )
+            if self.type_llm == "openai":
+                # Instance LLM
+                llm = ChatOpenAI(
+                    temperature=self.config['base_llm']['temperature'],
+                    model_name=self.config['openai_llm']['model_name'],
+                    streaming=self.streaming,
+                    model_kwargs={'top_p': 0.09},
+                    callbacks=callbacks
+                )
 
-        if self.type_llm == "bedrock":
-            # creat conection python to AWS
-            bedrock_client = boto3.client(
-                "bedrock-runtime",
-                region_name=self.config['bedrock_llm']['region_name'],
-            )
-            # Instance LLM
-            llm = Bedrock(
-                model_id=self.config['bedrock_llm']['model_name'],
-                client=bedrock_client,
-                model_kwargs={
-                    "temperature": self.config['base_llm']['temperature'],
-                    "topP": self.config['bedrock_llm']['topP'],
-                    "maxTokens": self.config['bedrock_llm']['maxTokens']
-                }
-            )
-
+            if self.type_llm == "bedrock":
+                # creat conection python to AWS
+                bedrock_client = boto3.client(
+                    "bedrock-runtime",
+                    region_name=self.config['bedrock_llm']['region_name'],
+                )
+                # Instance LLM
+                llm = Bedrock(
+                    model_id=self.config['bedrock_llm']['model_name'],
+                    client=bedrock_client,
+                    model_kwargs={
+                        "temperature": self.config['base_llm']['temperature'],
+                        "topP": self.config['bedrock_llm']['topP'],
+                        "maxTokens": self.config['bedrock_llm']['maxTokens']
+                    },
+                    callbacks=callbacks
+                )
+        except Exception as e:
+            logger.error(f"Error in instance_model: {e}")
+            raise e
         return llm
 
 
@@ -84,7 +98,7 @@ if __name__ == "__main__":
     from langchain.chains import LLMChain
     from promptwatch import PromptWatch
 
-    base_llm = BaseLLM(debug=True)
+    base_llm = BaseLLM(debug=True, streaming=True, type_model="openai")
     query = "create history about a wizard"
 
     prompt = PromptTemplate(
@@ -94,7 +108,11 @@ if __name__ == "__main__":
     )
 
     llm_chain = LLMChain(
-        llm=base_llm(), prompt=prompt, llm_kwargs={"temperature": 0.0})
+        llm=base_llm(), prompt=prompt)
+
+    # with PromptWatch(api_key="") as pw:
+    # res = base_llm.llm.predict(query)
+    # print(res)
 
     response = llm_chain.run(query=query)
     print(f"response: {response}")

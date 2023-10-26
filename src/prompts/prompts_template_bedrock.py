@@ -17,17 +17,21 @@ If you don't know the answer, just say that you don't know, don't try to make up
 {context}
 
 Human: {question}"""
+
 CONVERSATIONAL_RETRIEVAL_CHAIN = PromptTemplate(
     template=prompt_template, input_variables=["context", "question"]
 )
 
 
-CONVERSATIONAL_RETRIEVAL_CHAIN_V2 = """You are an assistant for question-answering tasks. Use the following pieces of retrieved context to answer the question. If you don't know the answer, just say that you don't know. Use three sentences maximum and keep the answer concise.
+prompt_template = """You are an assistant for question-answering tasks. Use the following pieces of retrieved context to answer the question. If you don't know the answer, just say that you don't know. Use three sentences maximum and keep the answer concise.
 Question: {question} 
 Context: {context} 
 Chat History: {chat_history}
 Answer:
 """
+CONVERSATIONAL_RETRIEVAL_CHAIN_V2 = PromptTemplate(
+    template=prompt_template, input_variables=["context", "question", "chat_history"]
+)
 # ---------------------------------------------------------
 # Text Analysis Chains
 # ---------------------------------------------------------

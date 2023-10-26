@@ -2,6 +2,10 @@ base_llm:
   type_llm: "bedrock" # "bedrock" or "openai"
   temperature: 0.0
 
+secret_manager:
+  secret_name: "test-hubsync"
+  region_name: "us-east-1"
+
 openai_llm:
   model_name: "gpt-3.5-turbo-16k"
 

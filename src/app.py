@@ -3,26 +3,33 @@
 import aiofiles
 import os
 from typing_extensions import List
+from mangum import Mangum
 from fastapi import FastAPI, File, UploadFile, HTTPException, Form, Depends
 from contextlib import asynccontextmanager
-from pydantic import BaseModel
 from fastapi.responses import JSONResponse
 from src.conversational_chain import ChatRetrieval, ChatRetrievalException
 from src.prompts.prompts_template import INIT_QUERY
 from src.splitter import Splitter, SplitterException
 from src.retriever import Retriever, RetrieverException
 from src.base_llm import BaseLLM, BaseLLMException
+from src.utils.define_inputs import (
+    RephraseItem,
+    SummarizeItem,
+    ChangeToneItem,
+    ChatItem,
+)
 from src.text_analysis_chains import (
     summarize_text, 
     SummarizeException,
     change_of_tone_text,
-    ChangeOfToneException, 
+    ChangeOfToneException,
     rephrase_text,
     RephraseException,
     parragraph_suggestion,
     ParagraphSuggestionException
 )
 from src.sugestion_generator import SuggestionGenerator, SuggestionGeneratorException
+
 
 def instance_chat(debug=False):
     # Instance retriever when app is started
@@ -34,8 +41,10 @@ def instance_chat(debug=False):
         llm=chat_retrieval.llm, type_llm=base_llm.type_llm, debug=debug)
     return splitter, retriever, chat_retrieval, suggester
 
+
 # Main components of the API
 components = {}
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -49,12 +58,12 @@ async def lifespan(app: FastAPI):
     # Clear the resources
     components.clear()
 
-### App Declaration
-DOCS_URL = "/swagger/index.html"
+# App Declaration
 app = FastAPI(
-    # docs_url=DOCS_URL, 
     lifespan=lifespan
 )
+# Define the handler for AWS Lambda
+handler = Mangum(app)
 
 ### Exceptions definition:
 # Generic
@@ -69,22 +78,22 @@ async def handle_retriever_exception(_, exc: RetrieverException):
 
 # Summarize
 @app.exception_handler(SummarizeException)
-async def handle_summary_exception(_, exc:SummarizeException):
+async def handle_summary_exception(_, exc: SummarizeException):
     return JSONResponse(status_code=500, content={"error": str(exc)})
 
 # Rephrase
 @app.exception_handler(RephraseException)
-async def handle_rephrase_exception(_, exc:RephraseException):
+async def handle_rephrase_exception(_, exc: RephraseException):
     return JSONResponse(status_code=500, content={"error": str(exc)})
 
 # Change of Tone
 @app.exception_handler(ChangeOfToneException)
-async def handle_change_of_tone_exception(_, exc:ChangeOfToneException):
+async def handle_change_of_tone_exception(_, exc: ChangeOfToneException):
     return JSONResponse(status_code=500, content={"error": str(exc)})
 
 # Paragraph Suggestion
 @app.exception_handler(ParagraphSuggestionException)
-async def handle_paragraph_suggestion_exception(_, exc:ParagraphSuggestionException):
+async def handle_paragraph_suggestion_exception(_, exc: ParagraphSuggestionException):
     return JSONResponse(status_code=500, content={"error": str(exc)})
 
 # Chat Retrieval
@@ -99,8 +108,9 @@ async def handle_chat_retrieval_exception(_, exc:SuggestionGeneratorException):
 
 
 ### Endpoints: 
-
-
+@app.get('/', tags=['root'])
+def read_root():
+    return {'message': 'Welcome to Hubsync AI Assistant'}
 
 ## Document handling:
 @app.post('/document/upload_document', tags=['documents'])
@@ -133,85 +143,31 @@ async def upload_document_to_db(
     return response,  HTTPException(status_code=200)
 
 ## Text analysis
-# Summary
-class SummarizeItem(BaseModel):
-    input_text : str 
-    
-    class Config:
-        
-        schema_extra = {
-            "examples": [
-                {
-                    "input_text": """E-commerce platform Shopify is suing a 'John Doe' defendant for sending numerous false copyright complaints. The DMCA takedown notices have targeted a variety of vendors, who had their legitimate products taken offline as a result of the fraudulent actions. In addition, these vendors risked losing their entire accounts due to multiple false claims.
-
-shopifyThe DMCA takedown process gives copyright holders the option to remove infringing content from the web.
-
-It's a powerful, widely-used tool that takes millions of URLs and links offline every day. This often happens for a good reason, but some takedown efforts are questionable."""
-                }
-            ]
-        }
-
 @app.post('/ai_assistant/summarize', tags=['assistant'])
 async def summarize(
-        summarize : SummarizeItem
+        summarize: SummarizeItem
 ):
     summary = summarize_text(
         text=summarize.input_text,
-        llm=components['chat_retrieval'].llm, 
-        verbose=True # Testing Purposes
+        llm=components['chat_retrieval'].llm,
+        verbose=True  # Testing Purposes
     )
-    return {'response' : summary}, HTTPException(status_code=200)
+    return {'response': summary}, HTTPException(status_code=200)
 
-
-# Paraphrase
-class RephraseItem(BaseModel):
-    input_text : str
-
-    class Config:
-        
-        schema_extra = {
-            "examples" : [
-                {
-                    "input_text" : """E-commerce platform Shopify is suing a 'John Doe' defendant for sending numerous false copyright complaints. The DMCA takedown notices have targeted a variety of vendors, who had their legitimate products taken offline as a result of the fraudulent actions. In addition, these vendors risked losing their entire accounts due to multiple false claims.
-
-shopifyThe DMCA takedown process gives copyright holders the option to remove infringing content from the web.
-
-It's a powerful, widely-used tool that takes millions of URLs and links offline every day. This often happens for a good reason, but some takedown efforts are questionable."""
-                }
-            ]
-        }
 
 @app.post('/ai_assistant/rephrase', tags=['assistant'])
 async def rephrase(
-        rephrase_item : RephraseItem
+        rephrase_item: RephraseItem
 ):
     rephrase = rephrase_text(
         text=rephrase_item.input_text,
-        llm=components['chat_retrieval'].llm, 
-        verbose=True # Testing Purposes
+        llm=components['chat_retrieval'].llm,
+        verbose=True  # Testing Purposes
     )
-    return {'response' : rephrase}, HTTPException(status_code=200)
-    
+    return {'response': rephrase}, HTTPException(status_code=200)
+
 
 # Change of Tone
-class ChangeToneItem(BaseModel):
-    input_text : str 
-    tone_description : str 
-
-    class Config:
-
-        schema_extra={
-            "examples" : [
-                {
-                    "input_text" : """E-commerce platform Shopify is suing a 'John Doe' defendant for sending numerous false copyright complaints. The DMCA takedown notices have targeted a variety of vendors, who had their legitimate products taken offline as a result of the fraudulent actions. In addition, these vendors risked losing their entire accounts due to multiple false claims.
-
-shopifyThe DMCA takedown process gives copyright holders the option to remove infringing content from the web.
-
-It's a powerful, widely-used tool that takes millions of URLs and links offline every day. This often happens for a good reason, but some takedown efforts are questionable.""",
-                    "tone_description" : "As an Engagement Letter Law Professional who is about to write a real state contract"
-                }
-            ]
-        }
 
 @app.post('/ai_assistant/change_tone', tags=['assistant'])
 async def change_of_tone(
@@ -227,25 +183,6 @@ async def change_of_tone(
 
 
 ## Conversational functions
-class ChatItem(BaseModel):
-    session_id : str # TODO Change to UUID
-    chat_history : List
-    user_query : str
-
-    class Config:
-
-        schema_extra={
-            "examples" : [
-                {
-                    "session_id" : "123456",    
-                    "chat_history" : [ 
-                        ["Hi assistant", "Hi, I'am an AI Assistant. How can I help you?"],
-                        ["My name is Carlomagno, could you remember it?", "Sure, I'll remember it."]
-                        ],
-                    "user_query" : "Can you recall what is my name?"                    
-                }
-            ]
-        }
 
 @app.post('/ai_assistant/chat', tags=['assistant'])
 async def chat(

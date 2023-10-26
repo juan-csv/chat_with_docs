@@ -11,7 +11,9 @@ import json
 
 
 # local imports
-from src.utils.config import load_config
+from src.utils.logger import Logger
+# set logger
+logger = Logger(__name__).get_logger()
 
 class SuggestionGeneratorException(Exception):
     """Custom class for handling Suggestion Generation Exceptions"""
@@ -20,6 +22,7 @@ class SuggestionGeneratorException(Exception):
 class SuggestionGenerator:
 
     def __init__(self, llm, type_llm: str, debug: bool = False) -> None:
+        """Suggestion generator"""
         try:
             self.debug = debug
             self.llm = llm
@@ -36,17 +39,14 @@ class SuggestionGenerator:
 
             # build map reduce chain
             self.map_reduce_chain = self.build_map_reduce_suugestion_chain()
-        except Exception as error:
-            raise SuggestionGeneratorException(
-                f"Exception caught in SuggestionGenerator - init: {error}"
-            )
+        except Exception as e:
+            logger.error(f"Error in SuggestionGenerator: {e}")
+            raise e
 
     async def run(self, text, return_dict: bool = True):
         """Run the suggestion generator"""
+        # split in chunks
         try:
-            
-            # split in chunks
-
             chunks = self.splitter.split_text(text)
 
             # transform all chunks (string) to Document type
@@ -69,12 +69,11 @@ class SuggestionGenerator:
                     return str(raw_output)
 
             # transform output to string
-            return raw_output
-        
-        except Exception as error:
-            raise SuggestionGeneratorException(
-                f"Exception caught at Suggestion Generator - run: {error}"
-            )
+        except Exception as e:
+            logger.error(f"Error in SuggestionGenerator: {e}")
+            raise e
+
+        return raw_output
 
     def run_sync(self, text, return_dict: bool = True):
         """Run the suggestion generator"""

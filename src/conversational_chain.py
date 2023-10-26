@@ -1,16 +1,17 @@
 """Conversational chain"""
 from langchain.chains import ConversationalRetrievalChain
-from langchain.chat_models import ChatOpenAI
-
 if True:
     import sys
 
     sys.path.append("../")
 
-from src.prompts.prompts_template import CONVERSATIONAL_RETRIEVAL_CHAIN_V2
+from src.prompts.prompts_template_bedrock import CONVERSATIONAL_RETRIEVAL_CHAIN_V2
 from src.base_llm import BaseLLM, BaseLLMException
 from src.retriever import RetrieverException
 from langchain.chains.question_answering import load_qa_chain
+from src.utils.logger import Logger
+# set logger
+logger = Logger(__name__).get_logger()
 
 class ChatRetrievalException(Exception): 
     """Custom exception handling for ChatRetrieval module"""
@@ -19,9 +20,9 @@ class ChatRetrieval:
     """Chat retrieval"""
 
     def __init__(self, retriever, base_llm) -> None:
+        """Chat retrieval"""
         try:
-            """Chat retrieval"""
-                # Instance retriever
+            # Instance retriever
             self.retriever = retriever
 
             self.debug = self.retriever.debug
@@ -32,11 +33,11 @@ class ChatRetrieval:
 
             # Instance LLM
             self.llm = base_llm()
-        except (BaseLLMException, RetrieverException, Exception) as error:
+        except Exception as error:
+            logger.error(f"Error in ChatRetrieval: {error}")
             raise ChatRetrievalException(
                 f"Exception caught in ChatRetrieval - init: {error}"
             )
-        
 
     def run(
         self, query, chat_history: list = None, callbacks=None, session_id: str = ""
@@ -50,7 +51,6 @@ class ChatRetrieval:
             str: answer
         """
         try:
-        
             # Create chain
             qa = ConversationalRetrievalChain.from_llm(
                 self.llm,
@@ -74,6 +74,7 @@ class ChatRetrieval:
             return result["answer"]
         
         except Exception as error:
+            logger.error(f"Error in ChatRetrieval: {error}")
             raise ChatRetrievalException(
             f"Exception caught in ChatRetrieval module - run: {error}"
         )

@@ -1,6 +1,5 @@
 import base64
 import os
-import tempfile
 
 import langchain
 import asyncio
@@ -12,18 +11,9 @@ from src.prompts.prompts_template import INIT_QUERY
 from src.splitter import Splitter
 from src.retriever import Retriever
 from src.base_llm import BaseLLM
-from text_analysis_chains import summarize_text, change_of_tone_text, rephrase_text, parragraph_suggestion
+from src_old.text_analysis_chains import summarize_text, change_of_tone_text, rephrase_text, parragraph_suggestion
 from src.sugestion_generator import SuggestionGenerator
-
-
-def save_tmp_file(uploaded_file):
-    # Define the path where the temporary file will be saved
-    temp_dir = tempfile.mkdtemp()
-
-    # Save the uploaded PDF to the temporary directory
-    with open(os.path.join(temp_dir, uploaded_file.name), "wb") as f:
-        f.write(uploaded_file.getbuffer())
-    return os.path.join(temp_dir, uploaded_file.name)
+from src.utils.utils import save_tmp_file
 
 
 class StreamHandler(BaseCallbackHandler):

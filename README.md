@@ -1,6 +1,14 @@
 # chat_with_docs
 
-## Mount OpenSearch Database
+
+# Build Dockerfile and push to ECS
+```bash
+docker build -t <NameRepo> -f Dockerfile .
+docker tag <NameRepo>:latest <URLRepo>/<NameRepo>:latest
+docker push <URLRepo>/<NameRepo>:latest
+````
+
+## Mount OpenSearch Database local
 
 ```python
 python src/utils/dbinit_opensearch.py

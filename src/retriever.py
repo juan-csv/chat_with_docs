@@ -13,11 +13,14 @@ from opensearchpy.exceptions import NotFoundError
 from src.utils.config import load_config
 import logging
 import boto3
-
+from src.utils.logger import Logger
+# set logger
+logger = Logger(__name__).get_logger()
 
 
 class RetrieverException(Exception):
     """Custom Exception class for Retriever Module"""
+
 
 class Retriever:
     """Retriever class"""
@@ -58,7 +61,7 @@ class Retriever:
 
             # OpenSearch store
             self.vector_store = OpenSearchVectorSearchCS(
-                opensearch_url= f"http://{os.getenv('OPENSEARCH_AWS_HOST')}:{os.getenv('OPENSEARCH_AWS_PORT')}",
+                opensearch_url=f"http://{os.getenv('OPENSEARCH_AWS_HOST')}:{os.getenv('OPENSEARCH_AWS_PORT')}",
                 embedding_function=embedding_function,
                 http_auth=awsauth,
                 index_name=self.index_name,
@@ -72,11 +75,11 @@ class Retriever:
 
             # DB Client
             self.client = self.vector_store.client
-        
         except Exception as error:
+            logger.error(f"Error initializing Retriever: {error}")
             raise RetrieverException(
                 f"Exception caught in Retriever module - init: {error}"
-            ) 
+            )
 
     def __call__(self, session_id):
         """Return retriever"""
@@ -114,13 +117,13 @@ class Retriever:
                                 "must": {
                                     "match": {
                                         "metadata.session_id":  session_id
-                                        }
                                     }
                                 }
                             }
                         }
+                    }
                 )
-                logging.info('Delete documents response: ', delete_response)
+                logger.info('Delete documents response: ', delete_response)
 
                 self.vector_store.add_documents(documents=docs)
                 
@@ -128,7 +131,7 @@ class Retriever:
             return completed
         
         except NotFoundError as error: # The exception raised when there is no document with the Session ID provided
-            logging.exception('Documents to replace not found - skipping: ', error)
+            logger.exception('Documents to replace not found - skipping: ', error)
             pass
         
         except Exception as error:

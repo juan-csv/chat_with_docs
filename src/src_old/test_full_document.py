@@ -218,7 +218,7 @@ spliiter = RecursiveCharacterTextSplitter(
     chunk_size=chunk_size,
     chunk_overlap=chunk_overlap
 )
-chunks = spliiter.split_documents(doc)[:4]
+chunks = spliiter.split_documents(doc)[:10]
 # pprint(chunks[3].to_json()['kwargs']['page_content'])
 
 # Run Map redcue chain
@@ -244,9 +244,9 @@ final_res = map_reduce_chain.run(chunks)
 print(final_res)
 end_time = time.time()
 print("--- %s sequential seconds ---" %
-      (end_time - start_time))      # 1-31.8 | 4-50.2 | 10-170 seconds
+      (end_time - start_time))      # 1-31.8-openai | 4-50.2-openai | 10-170-openai seconds
 print("--- %s async seconds --------" %
-      (aend_time - astart_time))    # 1-22.8 | 4-29.1 | 10-54.6 seconds
+      (aend_time - astart_time))    # 1-22.8-openai | 4-29.1-openai | 10-54.6-openai seconds | 10-9.2-bedrock seconds
 
 # format output
 final_res_parsed = parse_output_suggestions(res[0])
