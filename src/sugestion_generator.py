@@ -11,54 +11,65 @@ import json
 
 
 # local imports
-from src.utils.config import load_config
+from src.utils.logger import Logger
+# set logger
+logger = Logger(__name__).get_logger()
 
 
 class SuggestionGenerator:
 
     def __init__(self, llm, type_llm: str, debug: bool = False) -> None:
-        self.debug = debug
-        self.llm = llm
-        self.type_llm = type_llm
+        """Suggestion generator"""
+        try:
+            self.debug = debug
+            self.llm = llm
+            self.type_llm = type_llm
 
-        # get prompts
-        self.PROMPT_DOC, self.PROMPT_MAP_SUGGESTION, self.PROMPT_REDUCE_SUGGESTION = self.get_prompts()
+            # get prompts
+            self.PROMPT_DOC, self.PROMPT_MAP_SUGGESTION, self.PROMPT_REDUCE_SUGGESTION = self.get_prompts()
 
-        # Instance splitter
-        self.splitter = RecursiveCharacterTextSplitter(
-            chunk_size=1000,
-            chunk_overlap=0.1
-        )
+            # Instance splitter
+            self.splitter = RecursiveCharacterTextSplitter(
+                chunk_size=1000,
+                chunk_overlap=0.1
+            )
 
-        # build map reduce chain
-        self.map_reduce_chain = self.build_map_reduce_suugestion_chain()
+            # build map reduce chain
+            self.map_reduce_chain = self.build_map_reduce_suugestion_chain()
+        except Exception as e:
+            logger.error(f"Error in SuggestionGenerator: {e}")
+            raise e
 
     async def run(self, text, return_dict: bool = True):
         """Run the suggestion generator"""
         # split in chunks
+        try:
+            chunks = self.splitter.split_text(text)
 
-        chunks = self.splitter.split_text(text)
+            # transform all chunks (string) to Document type
+            chunks_docs = [langchain.schema.document.Document(
+                page_content=chunk) for chunk in chunks]
 
-        # transform all chunks (string) to Document type
-        chunks_docs = [langchain.schema.document.Document(
-            page_content=chunk) for chunk in chunks]
+            # run map reduce in parrallel
+            raw_output = await asyncio.gather(
+                self.map_reduce_chain.arun(chunks_docs))
 
-        # run map reduce in parrallel
-        raw_output = await asyncio.gather(
-            self.map_reduce_chain.arun(chunks_docs))
+            # Parse output
+            if type(raw_output) == list:
+                raw_output = raw_output[0]
 
-        # Parse output
-        if type(raw_output) == list:
-            raw_output = raw_output[0]
+            # format output
+            if return_dict:
+                try:
+                    return str(self.parse_output_suggestions(raw_output))
+                except:
+                    return str(raw_output)
 
-        # format output
-        if return_dict:
-            try:
-                return str(self.parse_output_suggestions(raw_output))
-            except:
-                return str(raw_output)
+            # transform output to string
+        except Exception as e:
+            logger.error(f"Error in SuggestionGenerator: {e}")
+            raise e
 
-        # transform output to string
         return raw_output
 
     def run_sync(self, text, return_dict: bool = True):

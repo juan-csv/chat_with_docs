@@ -13,64 +13,71 @@ from opensearchpy.exceptions import NotFoundError
 from src.utils.config import load_config
 import logging
 import boto3
-
+from src.utils.logger import Logger
+# set logger
+logger = Logger(__name__).get_logger()
 
 
 class RetrieverException(Exception):
     """Custom Exception class for Retriever Module"""
+
 
 class Retriever:
     """Retriever class"""
 
     def __init__(self, debug=False):
         """Retriever class"""
-        self.debug = debug
+        try:
+            self.debug = debug
 
-        # Load config
-        self.config = load_config(debug=self.debug)
-        self.index_name = self.config['retriever']['opensearch_index_name']
-        self.type_llm = self.config['base_llm']['type_llm']
+            # Load config
+            self.config = load_config(debug=self.debug)
+            self.index_name = self.config['retriever']['opensearch_index_name']
+            self.type_llm = self.config['base_llm']['type_llm']
 
-        # Define embedding function
-        if self.type_llm == "openai":
-            # Instance embedding function
-            embedding_function = OpenAIEmbeddings()
+            # Define embedding function
+            if self.type_llm == "openai":
+                # Instance embedding function
+                embedding_function = OpenAIEmbeddings()
 
-        if self.type_llm == "bedrock":
-            bedrock_client = boto3.client(
-                "bedrock-runtime",
-                region_name=self.config['bedrock_llm']['region_name'],
+            if self.type_llm == "bedrock":
+                bedrock_client = boto3.client(
+                    "bedrock-runtime",
+                    region_name=self.config['bedrock_llm']['region_name'],
+                )
+                # Instance embedding function
+                embedding_function = BedrockEmbeddings(
+                    client=bedrock_client,
+                    model_id=self.config['bedrock_llm']['embedding_model_name'],
+                )
+
+            # Vector Store Init (AWS Based)
+
+            # AWS auth
+            service = self.config['retriever']['aws_service']
+            region = self.config['retriever']['aws_region']
+            credentials = boto3.Session().get_credentials()
+            awsauth = AWSV4SignerAuth(credentials, region, service)
+
+            # OpenSearch store
+            self.vector_store = OpenSearchVectorSearchCS(
+                opensearch_url=f"http://{os.getenv('OPENSEARCH_AWS_HOST')}:{os.getenv('OPENSEARCH_AWS_PORT')}",
+                embedding_function=embedding_function,
+                http_auth=awsauth,
+                index_name=self.index_name,
+                use_ssl=True,
+                verify_certs=False,
+                ssl_assert_hostname=False,
+                ssl_show_warn=False,
+                connection_class=RequestsHttpConnection,
+                timeout=300
             )
-            # Instance embedding function
-            embedding_function = BedrockEmbeddings(
-                client=bedrock_client,
-                model_id=self.config['bedrock_llm']['embedding_model_name'],
-            )
 
-        # Vector Store Init (AWS Based)
-
-        # AWS auth
-        service = self.config['retriever']['aws_service']
-        region = self.config['retriever']['aws_region']
-        credentials = boto3.Session().get_credentials()
-        awsauth = AWSV4SignerAuth(credentials, region, service)
-
-        # OpenSearch store
-        self.vector_store = OpenSearchVectorSearchCS(
-            opensearch_url= f"http://{os.getenv('OPENSEARCH_AWS_HOST')}:{os.getenv('OPENSEARCH_AWS_PORT')}",
-            embedding_function=embedding_function,
-            http_auth=awsauth,
-            index_name=self.index_name,
-            use_ssl=True,
-            verify_certs=False,
-            ssl_assert_hostname=False,
-            ssl_show_warn=False,
-            connection_class=RequestsHttpConnection,
-            timeout=300
-        )
-
-        # DB Client
-        self.client = self.vector_store.client
+            # DB Client
+            self.client = self.vector_store.client
+        except Exception as e:
+            logger.error(f"Error initializing Retriever: {e}")
+            raise e
 
     def __call__(self, session_id):
         """Return retriever"""
@@ -90,7 +97,8 @@ class Retriever:
         try:
             for doc in docs:
                 doc.metadata["session_id"] = session_id
-        except Exception as error: 
+        except Exception as error:
+            logger.error(f"Error adding session_id to docs: {error}")
             return False
 
         if replace_docs:
@@ -104,21 +112,23 @@ class Retriever:
                                 "must": {
                                     "match": {
                                         "metadata.session_id":  session_id
-                                        }
                                     }
                                 }
                             }
                         }
+                    }
                 )
                 logging.info(delete_response)
             except NotFoundError as error:
                 print('Documents to replace not found: ', error)
+                logger.info('Documents to replace not found: ', error)
                 pass
 
-            try: 
+            try:
                 # Store in vector store
                 self.vector_store.add_documents(documents=docs)
-            except Exception as error: 
-                return False 
-            
-            return True 
+            except Exception as error:
+                logger.error(f"Error storing documents: {error}")
+                return False
+
+            return True

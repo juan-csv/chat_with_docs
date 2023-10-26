@@ -2,9 +2,12 @@
 if True:
     import sys
     sys.path.append("../")
-from src.utils.config import load_config
+from src.utils.logger import Logger
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.document_loaders import PDFMinerLoader
+from src.utils.config import load_config
+# set logger
+logger = Logger(__name__).get_logger()
 
 
 class Splitter:
@@ -12,32 +15,38 @@ class Splitter:
 
     def __init__(self, debug=False):
         """Retriever class"""
-        self.debug = debug
+        try:
+            self.debug = debug
 
-        # Load config
-        self.config = load_config(debug=self.debug)
-       
-        # parameters
-        self.chunk_size = self.config['splitter']['chunk_size']
-        self.chunk_overlap = self.config['splitter']['chunk_overlap']
+            # Load config
+            self.config = load_config(debug=self.debug)
 
-        # Instance
-        self.splitter = RecursiveCharacterTextSplitter(
-            chunk_size=self.chunk_size,
-            chunk_overlap=self.chunk_overlap,
-        )
-    
-    def process_document(self, path_file:str):
+            # parameters
+            self.chunk_size = self.config['splitter']['chunk_size']
+            self.chunk_overlap = self.config['splitter']['chunk_overlap']
+
+            # Instance
+            self.splitter = RecursiveCharacterTextSplitter(
+                chunk_size=self.chunk_size,
+                chunk_overlap=self.chunk_overlap,
+            )
+        except Exception as e:
+            logger.error(f"Error initializing Splitter class: {e}")
+            raise e
+
+    def process_document(self, path_file: str):
         """Read document -> split in chunks -> return documents list"""
         # Read document
-        doc = PDFMinerLoader(path_file).load()
-        # TODO: remove '5' it's just for debugging
-        if self.debug:
-            chunks = self.splitter.split_documents(doc)[:5]
-        else:
-            chunks = self.splitter.split_documents(doc)
-        return chunks
-
+        try:
+            doc = PDFMinerLoader(path_file).load()
+            if self.debug:
+                chunks = self.splitter.split_documents(doc)[:5]
+            else:
+                chunks = self.splitter.split_documents(doc)
+            return chunks
+        except Exception as e:
+            logger.error(f"Error processing document: {e}")
+            raise e
 
 
 if __name__ == "__main__":

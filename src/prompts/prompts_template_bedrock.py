@@ -17,6 +17,7 @@ If you don't know the answer, just say that you don't know, don't try to make up
 {context}
 
 Human: {question}"""
+
 CONVERSATIONAL_RETRIEVAL_CHAIN = PromptTemplate(
     template=prompt_template, input_variables=["context", "question"]
 )

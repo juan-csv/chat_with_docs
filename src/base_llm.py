@@ -5,8 +5,12 @@ import boto3
 if True:
     import sys
     sys.path.append("../")
-#from src.utils.config import load_config
-from src.utils.config_aws import load_config
+# from src.utils.config import load_config
+from src.utils.config import load_config
+from src.utils.logger import Logger
+
+# set logger
+logger = Logger(__name__).get_logger()
 
 
 class BaseLLM:
@@ -14,15 +18,19 @@ class BaseLLM:
 
     def __init__(self, debug=False, streaming=False, type_model=None) -> None:
         """Chat retrieval"""
-        self.debug = debug
-        self.config = load_config(debug=self.debug)
-        self.streaming = streaming
+        try:
+            self.debug = debug
+            self.config = load_config(debug=self.debug)
+            self.streaming = streaming
 
-        # get type llm
-        self.type_llm = self.get_type_llm(type_model=type_model)
+            # get type llm
+            self.type_llm = self.get_type_llm(type_model=type_model)
 
-        # Instance LLM
-        self.llm = self.instance_model()
+            # Instance LLM
+            self.llm = self.instance_model()
+        except Exception as e:
+            logger.error(f"Error in BaseLLM: {e}")
+            raise e
 
     def __call__(self):
         """Return chain"""
@@ -38,39 +46,42 @@ class BaseLLM:
 
     def instance_model(self):
         """Return llm"""
-        if self.streaming:
-            callbacks = [StreamingStdOutCallbackHandler()]
-        else:
-            callbacks = None
+        try:
+            if self.streaming:
+                callbacks = [StreamingStdOutCallbackHandler()]
+            else:
+                callbacks = None
 
-        if self.type_llm == "openai":
-            # Instance LLM
-            llm = ChatOpenAI(
-                temperature=self.config['base_llm']['temperature'],
-                model_name=self.config['openai_llm']['model_name'],
-                streaming=self.streaming,
-                model_kwargs={'top_p': 0.09},
-                callbacks=callbacks
-            )
+            if self.type_llm == "openai":
+                # Instance LLM
+                llm = ChatOpenAI(
+                    temperature=self.config['base_llm']['temperature'],
+                    model_name=self.config['openai_llm']['model_name'],
+                    streaming=self.streaming,
+                    model_kwargs={'top_p': 0.09},
+                    callbacks=callbacks
+                )
 
-        if self.type_llm == "bedrock":
-            # creat conection python to AWS
-            bedrock_client = boto3.client(
-                "bedrock-runtime",
-                region_name=self.config['bedrock_llm']['region_name'],
-            )
-            # Instance LLM
-            llm = Bedrock(
-                model_id=self.config['bedrock_llm']['model_name'],
-                client=bedrock_client,
-                model_kwargs={
-                    "temperature": self.config['base_llm']['temperature'],
-                    "topP": self.config['bedrock_llm']['topP'],
-                    "maxTokens": self.config['bedrock_llm']['maxTokens']
-                },
-                callbacks=callbacks
-            )
-
+            if self.type_llm == "bedrock":
+                # creat conection python to AWS
+                bedrock_client = boto3.client(
+                    "bedrock-runtime",
+                    region_name=self.config['bedrock_llm']['region_name'],
+                )
+                # Instance LLM
+                llm = Bedrock(
+                    model_id=self.config['bedrock_llm']['model_name'],
+                    client=bedrock_client,
+                    model_kwargs={
+                        "temperature": self.config['base_llm']['temperature'],
+                        "topP": self.config['bedrock_llm']['topP'],
+                        "maxTokens": self.config['bedrock_llm']['maxTokens']
+                    },
+                    callbacks=callbacks
+                )
+        except Exception as e:
+            logger.error(f"Error in instance_model: {e}")
+            raise e
         return llm
 
 
