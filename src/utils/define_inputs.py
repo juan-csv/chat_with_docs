@@ -5,6 +5,7 @@ from typing_extensions import List
 
 # Paraphrase
 class RephraseItem(BaseModel):
+    """BaseModel for Rephrase"""
     input_text: str
 
     class Config:
@@ -24,7 +25,8 @@ It's a powerful, widely-used tool that takes millions of URLs and links offline 
 
 
 class SummarizeItem(BaseModel):
-    input_text: str = "This is a text to summarize"
+    """BaseModel for Summarize"""
+    input_text: str 
 
     class Config:
         schema_extra = {
@@ -44,10 +46,12 @@ It's a powerful, widely-used tool that takes millions of URLs and links offline 
 
 
 class ChangeToneItem(BaseModel):
+    """BaseModel for Change of Tone"""
     input_text : str 
     tone_description : str 
 
     class Config:
+        """Config"""
 
         schema_extra={
             "examples" : [
@@ -66,11 +70,13 @@ It's a powerful, widely-used tool that takes millions of URLs and links offline 
 
 
 class ChatItem(BaseModel):
-    session_id : str # TODO Change to UUID
+    """BaseModel for Chat"""
+    session_id : str 
     chat_history : List
     user_query : str
 
     class Config:
+        """Config"""
 
         schema_extra={
             "examples" : [

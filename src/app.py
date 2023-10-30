@@ -19,14 +19,14 @@ from src.utils.define_inputs import (
     ChatItem,
 )
 from src.text_analysis_chains import (
-    summarize_text, 
+    summarize_text,
     SummarizeException,
     change_of_tone_text,
     ChangeOfToneException,
     rephrase_text,
     RephraseException,
     parragraph_suggestion,
-    ParagraphSuggestionException
+    ParagraphSuggestionException,
 )
 from src.sugestion_generator import SuggestionGenerator, SuggestionGeneratorException
 
@@ -38,7 +38,8 @@ def instance_chat(debug=False):
     base_llm = BaseLLM(debug=debug, streaming=True)
     chat_retrieval = ChatRetrieval(retriever=retriever, base_llm=base_llm)
     suggester = SuggestionGenerator(
-        llm=chat_retrieval.llm, type_llm=base_llm.type_llm, debug=debug)
+        llm=chat_retrieval.llm, type_llm=base_llm.type_llm, debug=debug
+    )
     return splitter, retriever, chat_retrieval, suggester
 
 
@@ -50,20 +51,20 @@ components = {}
 async def lifespan(app: FastAPI):
     # Load the Conversational Modules:
     splitter, retriever, chat_retrieval, suggester = instance_chat(debug=True)
-    components['splitter'] = splitter
-    components['retriever'] = retriever
-    components['chat_retrieval'] = chat_retrieval
-    components['suggester'] = suggester
+    components["splitter"] = splitter
+    components["retriever"] = retriever
+    components["chat_retrieval"] = chat_retrieval
+    components["suggester"] = suggester
     yield
     # Clear the resources
     components.clear()
 
+
 # App Declaration
-app = FastAPI(
-    lifespan=lifespan
-)
+app = FastAPI(lifespan=lifespan)
 # Define the handler for AWS Lambda
 handler = Mangum(app)
+
 
 ### Exceptions definition:
 # Generic
@@ -71,143 +72,163 @@ handler = Mangum(app)
 async def handle_generic_exception(_, exc: Exception):
     return JSONResponse(status_code=500, content={"error": str(exc)})
 
+
 # Retriever
 @app.exception_handler(RetrieverException)
 async def handle_retriever_exception(_, exc: RetrieverException):
     return JSONResponse(status_code=500, content={"error": str(exc)})
+
 
 # Summarize
 @app.exception_handler(SummarizeException)
 async def handle_summary_exception(_, exc: SummarizeException):
     return JSONResponse(status_code=500, content={"error": str(exc)})
 
+
 # Rephrase
 @app.exception_handler(RephraseException)
 async def handle_rephrase_exception(_, exc: RephraseException):
     return JSONResponse(status_code=500, content={"error": str(exc)})
+
 
 # Change of Tone
 @app.exception_handler(ChangeOfToneException)
 async def handle_change_of_tone_exception(_, exc: ChangeOfToneException):
     return JSONResponse(status_code=500, content={"error": str(exc)})
 
+
 # Paragraph Suggestion
 @app.exception_handler(ParagraphSuggestionException)
 async def handle_paragraph_suggestion_exception(_, exc: ParagraphSuggestionException):
     return JSONResponse(status_code=500, content={"error": str(exc)})
 
+
 # Chat Retrieval
 @app.exception_handler(ChatRetrievalException)
-async def handle_chat_retrieval_exception(_, exc:ChatRetrievalException):
+async def handle_chat_retrieval_exception(_, exc: ChatRetrievalException):
+    """Custom exception handler for Chat functionality"""
     return JSONResponse(status_code=500, content={"error", str(exc)})
+
 
 # Suggestion Generator
 @app.exception_handler(SuggestionGeneratorException)
-async def handle_chat_retrieval_exception(_, exc:SuggestionGeneratorException):
+async def handle_suggestion_generator_exception(_, exc: SuggestionGeneratorException):
     return JSONResponse(status_code=500, content={"error", str(exc)})
 
 
-### Endpoints: 
-@app.get('/', tags=['root'])
+### Endpoints:
+@app.get("/", tags=["root"])
 def read_root():
-    return {'message': 'Welcome to Hubsync AI Assistant'}
+    return {"message": "Welcome to Hubsync AI Assistant"}
+
 
 ## Document handling:
-@app.post('/document/upload_document', tags=['documents'])
+@app.post("/document/upload_document", tags=["documents"])
 async def upload_document_to_db(
-        session_id : str = Form(...),
-        file : UploadFile = File(...)
+    session_id: str = Form(...), file: UploadFile = File(...)
 ):
-    # TMP file definition 
-    if os.path.exists('tmp') == False:
-        os.mkdir('tmp')
-    
+    # TMP file definition
+    if os.path.exists("tmp") == False:
+        os.mkdir("tmp")
+
     # File handling
-    tmp_filename = f'{session_id}_{file.filename}.pdf'
-    async with aiofiles.open(f'tmp/{tmp_filename}', 'wb') as out_file:
+    tmp_filename = f"{session_id}_{file.filename}.pdf"
+    async with aiofiles.open(f"tmp/{tmp_filename}", "wb") as out_file:
         contents = await file.read()
         await out_file.write(contents)
-    
+
     # File processing
-    splitted_docs = components['splitter'].process_document(path_file=f'tmp/{tmp_filename}')
+    splitted_docs = components["splitter"].process_document(
+        path_file=f"tmp/{tmp_filename}"
+    )
+
     # Adding document to the OpenSearchServerless DB
-    store = components['retriever'].store_document(
+    store = components["retriever"].store_document(
         docs=splitted_docs,
         session_id=session_id,
-        replace_docs=True
     )
-    response = {
-        'response': store
-    }
+    response = {"response": store}
 
-    return response,  HTTPException(status_code=200)
+    # Remove TMP path
+    for file_name in os.listdir("tmp"):
+        os.remove(os.path.join("tmp", file_name))
+    os.rmdir("tmp")
+
+    return response
 
 
-@app.post('/document/ping_document', tags=['documents'])
+@app.post("/document/ping_document", tags=["test_documents"])
 async def ping_document(
-        session_id : str = Form(...),
+    session_id: str = Form(...),
 ):
-    response = {
-        'response' :  components['retriever'].ping_document(session_id)
-    }
-    return response,  HTTPException(status_code=200)
+    response = {"response": components["retriever"].ping_document(session_id)}
+    return response
+
+
+@app.post("/document/delete_document", tags=["test_documents"])
+async def delete_document(
+    session_id: str = Form(...),
+):
+    response = {"response": components["retriever"].delete_document(session_id)}
+    return response
 
 
 ## Text analysis
-@app.post('/ai_assistant/summarize', tags=['assistant'])
-async def summarize(
-        summarize: SummarizeItem
-):
+@app.post("/ai_assistant/summarize", tags=["assistant"])
+async def summarize(summarize: SummarizeItem):
     summary = summarize_text(
         text=summarize.input_text,
-        llm=components['chat_retrieval'].llm,
-        verbose=True  # Testing Purposes
+        llm=components["chat_retrieval"].llm,
+        verbose=True,  # Testing Purposes
     )
-    return {'response': summary}, HTTPException(status_code=200)
+
+    response = {"response": summary}
+    return response
 
 
-@app.post('/ai_assistant/rephrase', tags=['assistant'])
-async def rephrase(
-        rephrase_item: RephraseItem
-):
+@app.post("/ai_assistant/rephrase", tags=["assistant"])
+async def rephrase(rephrase_item: RephraseItem):
     rephrase = rephrase_text(
         text=rephrase_item.input_text,
-        llm=components['chat_retrieval'].llm,
-        verbose=True  # Testing Purposes
+        llm=components["chat_retrieval"].llm,
+        verbose=True,  # Testing Purposes
     )
-    return {'response': rephrase}, HTTPException(status_code=200)
+    response = {"response": rephrase}
+    return response
 
 
 # Change of Tone
 
-@app.post('/ai_assistant/change_tone', tags=['assistant'])
-async def change_of_tone(
-        change_tone_item : ChangeToneItem
-):
+
+@app.post("/ai_assistant/change_of_tone", tags=["assistant"])
+async def change_of_tone(change_tone_item: ChangeToneItem):
     changed_tone = change_of_tone_text(
         text=change_tone_item.input_text,
         tone_description=change_tone_item.tone_description,
-        llm=components['chat_retrieval'].llm, 
-        verbose=True # Testing Purposes
+        llm=components["chat_retrieval"].llm,
+        verbose=True,  # Testing Purposes
     )
-    return {'response' : changed_tone}, HTTPException(status_code=200)
+
+    response = {"response": changed_tone}
+    return response
 
 
 ## Conversational functions
 
-@app.post('/ai_assistant/chat', tags=['assistant'])
-async def chat(
-    chat_item : ChatItem 
-):
-    # Chat History Transformation: 
-    chat_history_tuples = [ (x[0], x[1]) for x in chat_item.chat_history ]
+
+@app.post("/ai_assistant/chat", tags=["assistant"])
+async def chat(chat_item: ChatItem):
+    """Chat endpoint"""
+    # Chat History Transformation:
+    chat_history_tuples = [(x[0], x[1]) for x in chat_item.chat_history]
     print(chat_history_tuples)
 
     # Response
-    response = components["chat_retrieval"].run(
-                        chat_item.user_query,
-                        chat_history=chat_history_tuples,
-                        session_id=chat_item.session_id
-                    )
-    
-    return {"response" : response}, HTTPException(status_code=200)
+    chat_response = components["chat_retrieval"].run(
+        chat_item.user_query,
+        chat_history=chat_history_tuples,
+        session_id=chat_item.session_id,
+    )
+
+    response = {"response": chat_response}
+    return response

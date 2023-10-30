@@ -1,5 +1,6 @@
 """Conversational chain"""
 from langchain.chains import ConversationalRetrievalChain
+
 if True:
     import sys
 
@@ -10,11 +11,14 @@ from src.base_llm import BaseLLM, BaseLLMException
 from src.retriever import RetrieverException
 from langchain.chains.question_answering import load_qa_chain
 from src.utils.logger import Logger
+
 # set logger
 logger = Logger(__name__).get_logger()
 
-class ChatRetrievalException(Exception): 
+
+class ChatRetrievalException(Exception):
     """Custom exception handling for ChatRetrieval module"""
+
 
 class ChatRetrieval:
     """Chat retrieval"""
@@ -34,10 +38,10 @@ class ChatRetrieval:
             # Instance LLM
             self.llm = base_llm()
         except Exception as error:
-            logger.error(f"Error in ChatRetrieval: {error}")
+            logger.error("Error in ChatRetrieval: %s", error)
             raise ChatRetrievalException(
                 f"Exception caught in ChatRetrieval - init: {error}"
-            )
+            ) from error
 
     def run(
         self, query, chat_history: list = None, callbacks=None, session_id: str = ""
@@ -57,8 +61,7 @@ class ChatRetrieval:
                 self.retriever(session_id=session_id),
                 verbose=self.debug,
                 # condense_question_llm=self.base_llm,
-                combine_docs_chain_kwargs={
-                    "prompt": CONVERSATIONAL_RETRIEVAL_CHAIN_V2},
+                combine_docs_chain_kwargs={"prompt": CONVERSATIONAL_RETRIEVAL_CHAIN_V2},
             )
 
             if chat_history is None:
@@ -72,10 +75,9 @@ class ChatRetrieval:
             self.chat_history.append((query, result["answer"]))
 
             return result["answer"]
-        
+
         except Exception as error:
-            logger.error(f"Error in ChatRetrieval: {error}")
+            logger.error("Error in ChatRetrieval: %s", error)
             raise ChatRetrievalException(
-            f"Exception caught in ChatRetrieval module - run: {error}"
-        )
-        
+                f"Exception caught in ChatRetrieval module - run: {error}"
+            ) from error
